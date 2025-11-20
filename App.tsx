@@ -11,6 +11,7 @@ import { checkAuthStatus } from './src/utils/authCheck';
 import { loadThemeMode, ThemeMode } from './src/store/slices/uiSlice';
 import { useTheme } from './src/hooks/useTheme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import notificationService from './src/services/notificationService';
 
 import { MainTabNavigator } from './src/navigation/MainTabNavigator';
 import LoadingScreen from './src/screens/LoadingScreen';
@@ -80,19 +81,28 @@ function AppContent() {
     
     loadTheme();
     
-    // Initialize FCM - temporarily disabled for debugging
-    try {
-      // FCMService.initialize();
-      console.log('FCM initialization skipped for debugging');
-    } catch (error) {
-      console.error('FCM initialization error in App:', error);
-    }
+    // Initialize Firebase notifications
+    notificationService.initialize();
+    
+    // Debug: Log FCM token
+    setTimeout(async () => {
+      try {
+        const messaging = require('@react-native-firebase/messaging').default;
+        const token = await messaging().getToken();
+        console.log('🔥 DEBUG FCM TOKEN:', token);
+        console.log('🔥 TOKEN LENGTH:', token?.length);
+      } catch (error) {
+        console.log('🔥 DEBUG FCM ERROR:', error);
+      }
+    }, 3000);
 
   }, [dispatch]);
 
   return (
     <SafeAreaProvider>
-      <NavigationContainer>
+      <NavigationContainer
+        ref={(ref) => notificationService.setNavigationRef(ref)}
+      >
         <StatusBar 
           barStyle={isDark ? "light-content" : "dark-content"} 
           backgroundColor={colors.background} 
@@ -131,6 +141,7 @@ function AppContent() {
               <Stack.Screen name="MapLocation" component={MapLocationScreen} />
               <Stack.Screen name="AddressDetails" component={AddressDetailsScreen} />
               <Stack.Screen name="Chat" component={ChatScreen} />
+              <Stack.Screen name="Debug" component={require('./src/screens/DebugScreen').default} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>

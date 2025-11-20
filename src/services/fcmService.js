@@ -22,21 +22,27 @@ class FCMService {
       );
       
       if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-        console.log('Notification permission granted');
+        console.log('Android 13+ notification permission granted');
         await this.getFCMToken();
       } else {
-        console.log('Notification permission denied');
+        console.log('Android 13+ notification permission denied');
       }
-    } else {
-      // Android < 13 or iOS
+    } else if (Platform.OS === 'ios') {
+      // iOS permission request
       const authStatus = await messaging().requestPermission();
       const enabled = authStatus === messaging.AuthorizationStatus.AUTHORIZED || 
                      authStatus === messaging.AuthorizationStatus.PROVISIONAL;
 
       if (enabled) {
-        console.log('Notification permission granted:', authStatus);
+        console.log('iOS notification permission granted:', authStatus);
         await this.getFCMToken();
+      } else {
+        console.log('iOS notification permission denied');
       }
+    } else {
+      // Android < 13 - no explicit permission needed
+      console.log('Android < 13 - getting FCM token directly');
+      await this.getFCMToken();
     }
   }
 
@@ -60,15 +66,10 @@ class FCMService {
       await this.saveFCMToken(token);
     });
 
-    // Handle foreground notifications
+    // Handle foreground notifications - only log, don't show alert
     messaging().onMessage(async remoteMessage => {
-      console.log('Foreground notification:', remoteMessage);
-      
-      Alert.alert(
-        remoteMessage.notification?.title || 'Notification',
-        remoteMessage.notification?.body || '',
-        [{ text: 'OK' }]
-      );
+      console.log('Foreground notification received:', remoteMessage);
+      // System notification will still show in notification tray
     });
 
     // Handle background/quit state notifications
@@ -129,34 +130,22 @@ class FCMService {
       });
 
       if (response.ok) {
-        console.log('FCM token sent to backend successfully');
+        const result = await response.json();
+        console.log('FCM token saved to backend:', result);
       } else {
-        console.error('Failed to send FCM token to backend', response.status);
+        console.error('Failed to save FCM token to backend:', response.status);
       }
     } catch (error) {
-      console.error('Error sending FCM token to backend:', error);
+      console.error('Error saving FCM token to backend:', error);
     }
   }
 
   handleNotificationTap(data) {
     if (!data) return;
 
-    const { type, orderId } = data;
-
-    switch (type) {
-      case 'ORDER_CONFIRMED':
-      case 'ORDER_DISPATCHED':
-      case 'ORDER_DELIVERED':
-        // Navigate to order details
-        console.log('Navigate to order:', orderId);
-        break;
-      case 'PROMOTIONAL':
-        // Navigate to promotions
-        console.log('Navigate to promotions');
-        break;
-      default:
-        console.log('Unknown notification type:', type);
-    }
+    // Import navigation service to handle routing
+    const notificationService = require('./notificationService').default;
+    notificationService.navigateFromNotification(data);
   }
 
   async removeFCMToken() {
