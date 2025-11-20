@@ -17,6 +17,7 @@ import { useTheme } from '../hooks/useTheme';
 import { useCart } from '../hooks/useCart';
 import { RootState, AppDispatch } from '../store/store';
 import { addToCart } from '../store/slices/cartSlice';
+import { tokenManager } from '../utils/tokenManager';
 
 const { width } = Dimensions.get('window');
 
@@ -24,7 +25,8 @@ export default function ProductDetailsScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { colors } = useTheme();
-  const { getCartItemCount, isInCart, addToCart: addToCartAPI, updateQuantity, removeItem } = useCart();
+  const { getCartItemCount } = useCart();
+  const { isLoggedIn } = useSelector((state: RootState) => state.user);
   const dispatch = useDispatch<AppDispatch>();
 
   const [product, setProduct] = useState<any>(null);
@@ -54,60 +56,101 @@ export default function ProductDetailsScreen() {
   };
 
   const handleAddToCart = async () => {
-    if (product && product.variants?.[selectedVariant]) {
-      const variant = product.variants[selectedVariant];
-      const success = await addToCartAPI(variant.id);
+    if (!product?.variants?.[selectedVariant] || !isLoggedIn) return;
+    
+    const variant = product.variants[selectedVariant];
+    try {
+      const response = await tokenManager.makeAuthenticatedRequest('https://api.jholabazar.com/api/v1/cart/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ variantId: variant.id, quantity: '1' })
+      });
       
-      if (success) {
-        // Also update Redux for immediate UI feedback
-        dispatch(addToCart({
-          id: variant.id,
-          name: product.name,
-          price: parseFloat(variant.price.sellingPrice),
-          image: product.images?.[0] || variant.images?.[0],
-          unit: `${variant.weight} ${variant.baseUnit}`,
-          quantity: 1,
-        }));
-        // Update cart status to show quantity controls
+      const data = await response.json();
+      if (data.success) {
         await checkCartStatus();
       }
+    } catch (error) {
+      console.error('Error adding to cart:', error);
     }
   };
 
   useEffect(() => {
     if (productId) {
       fetchProductDetails();
-      checkCartStatus();
     }
   }, [productId]);
 
+  useEffect(() => {
+    if (product && isLoggedIn) {
+      checkCartStatus();
+    }
+  }, [product, selectedVariant, isLoggedIn]);
+
   const checkCartStatus = async () => {
-    if (!productId) return;
-    const item = isInCart(productId);
-    setCartItem(item);
+    if (!isLoggedIn || !product?.variants?.[selectedVariant]) {
+      setCartItem(null);
+      return;
+    }
+    try {
+      const currentVariant = product.variants[selectedVariant];
+      const response = await tokenManager.makeAuthenticatedRequest('https://api.jholabazar.com/api/v1/cart/');
+      const data = await response.json();
+      if (data.success && data.data.carts?.length > 0) {
+        const foundItem = data.data.carts[0].items?.find((item: any) => 
+          item.variant?.id === currentVariant.id
+        );
+        setCartItem(foundItem || null);
+      } else {
+        setCartItem(null);
+      }
+    } catch (error) {
+      setCartItem(null);
+    }
   };
 
   const handleIncrement = async () => {
-    if (cartItem?.id) {
-      const success = await updateQuantity(cartItem.id, 'increment');
-      if (success) {
+    if (!cartItem?.id) return;
+    
+    try {
+      const response = await tokenManager.makeAuthenticatedRequest(`https://api.jholabazar.com/api/v1/cart/items/${cartItem.id}/increment`, {
+        method: 'PATCH'
+      });
+      
+      if (response.ok) {
         await checkCartStatus();
       }
+    } catch (error) {
+      console.error('Error incrementing quantity:', error);
     }
   };
 
   const handleDecrement = async () => {
-    if (cartItem?.id) {
-      if (cartItem.quantity === 1) {
-        const success = await removeItem(cartItem.id);
-        if (success) {
+    if (!cartItem?.id) return;
+    
+    if (cartItem.quantity === 1) {
+      try {
+        const response = await tokenManager.makeAuthenticatedRequest(`https://api.jholabazar.com/api/v1/cart/items/${cartItem.id}`, {
+          method: 'DELETE'
+        });
+        
+        if (response.ok) {
           setCartItem(null);
         }
-      } else {
-        const success = await updateQuantity(cartItem.id, 'decrement');
-        if (success) {
+      } catch (error) {
+        console.error('Error removing item:', error);
+      }
+    } else {
+      try {
+        const response = await tokenManager.makeAuthenticatedRequest(`https://api.jholabazar.com/api/v1/cart/items/${cartItem.id}/decrement`, {
+          method: 'PATCH'
+        });
+        
+        if (response.ok) {
           await checkCartStatus();
         }
+      } catch (error) {
+        console.error('Error decrementing quantity:', error);
       }
     }
   };
