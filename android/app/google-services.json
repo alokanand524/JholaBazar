@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "607097607746",
+    "project_id": "jholabazarcom",
+    "storage_bucket": "jholabazarcom.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:607097607746:android:028b0cf87d4f5deebb7fdb",
+        "android_client_info": {
+          "package_name": "com.jholabazar"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDnrtKu7AD2nABR864O8T6AtjKxbZ_p2QY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
