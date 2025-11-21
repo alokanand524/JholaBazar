@@ -241,22 +241,33 @@ export default function CartScreen() {
 
 
 
-        {/* Free Delivery Message */}
-        {cartSummary?.thresholds?.freeDelivery && subtotal < cartSummary.thresholds.freeDelivery.amount && (
-          <View style={[styles.freeDeliveryMessage, { backgroundColor: '#FFF3CD', borderColor: '#FFEAA7' }]}>
-            <Icon name="local-shipping" size={16} color="#856404" />
-            <Text style={styles.freeDeliveryText}>
-              Add ₹{(cartSummary.thresholds.freeDelivery.amount - subtotal).toFixed(2)} more for free delivery
-            </Text>
-          </View>
-        )}
 
 
       </ScrollView>
 
+      {/* Free Delivery Message */}
+      {cartSummary?.deliveryInfo && !cartSummary.deliveryInfo.isEligibleForFreeDelivery && (
+        <View style={[styles.freeDeliveryMessage, { backgroundColor: '#FFF3CD', borderColor: '#FFEAA7' }]}>
+          <Icon name="local-shipping" size={16} color="#856404" />
+          <Text style={styles.freeDeliveryText}>
+            Add ₹{cartSummary.deliveryInfo.amountNeededForFreeDelivery} more for free delivery
+          </Text>
+        </View>
+      )}
+
+      {/* Free Delivery Achieved */}
+      {cartSummary?.deliveryInfo?.isEligibleForFreeDelivery && (
+        <View style={[styles.freeDeliveryMessage, { backgroundColor: '#D4EDDA', borderColor: '#C3E6CB' }]}>
+          <Icon name="local-shipping" size={16} color="#155724" />
+          <Text style={[styles.freeDeliveryText, { color: '#155724' }]}>
+            🎉 You've earned free delivery!
+          </Text>
+        </View>
+      )}
+
       {/* Threshold Information */}
       {isLoggedIn && apiCartData && cartSummary?.thresholds?.isEnabled && (
-        <View style={[styles.thresholdCard, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
+        <View style={[styles.freeDeliveryMessage, { backgroundColor: colors.card, borderColor: colors.border }]}>
           {cartSummary.thresholds.current && (
             <View style={styles.currentLevel}>
               <View style={styles.levelDot} />
@@ -272,7 +283,10 @@ export default function CartScreen() {
                 <View 
                   style={[
                     styles.progressActive, 
-                    { width: `${Math.min(100, (subtotal / cartSummary.thresholds.next.amount) * 100)}%` }
+                    { 
+                      width: `${Math.min(100, (subtotal / cartSummary.thresholds.next.amount) * 100)}%`,
+                      backgroundColor: subtotal < cartSummary.thresholds.next.amount * 0.5 ? '#FF8C00' : '#00B761'
+                    }
                   ]} 
                 />
               </View>
@@ -419,7 +433,8 @@ const styles = StyleSheet.create({
   freeDeliveryMessage: {
     flexDirection: 'row',
     alignItems: 'center',
-    margin: 16,
+    marginHorizontal: 16,
+    marginBottom: 8,
     padding: 12,
     borderRadius: 8,
     borderWidth: 1,
@@ -517,6 +532,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    flex: 1,
   },
   levelDot: {
     width: 8,
@@ -530,6 +546,7 @@ const styles = StyleSheet.create({
   },
   nextLevel: {
     gap: 8,
+    flex: 1,
   },
   progressTrack: {
     height: 4,
@@ -539,10 +556,43 @@ const styles = StyleSheet.create({
   },
   progressActive: {
     height: '100%',
-    backgroundColor: '#00B761',
     borderRadius: 2,
   },
   nextText: {
     fontSize: 12,
+  },
+  billSummary: {
+    margin: 16,
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  billTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  billRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  billLabel: {
+    fontSize: 14,
+  },
+  billValue: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  totalRow: {
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+    paddingTop: 8,
+    marginTop: 4,
+  },
+  billTotal: {
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
