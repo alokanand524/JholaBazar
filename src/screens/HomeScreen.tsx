@@ -217,10 +217,15 @@ export default function HomeScreen() {
     fetchCart();
   }, [isLoggedIn, fetchCart]);
 
-  // Refresh cart when screen comes into focus
+  // Silent refresh when screen comes into focus
   useFocusEffect(
     useCallback(() => {
+      // Silent refresh without showing loading states
       fetchCart();
+      fetchProducts();
+      fetchFeaturedProducts();
+      fetchCategories();
+      checkDeliveryService();
     }, [fetchCart])
   );
 

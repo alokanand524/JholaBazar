@@ -19,8 +19,11 @@ export default function CategoriesScreen() {
     dispatch(fetchCategories());
   }, [dispatch]);
 
-  const handleCategoryPress = (categoryName: string) => {
-    navigation.navigate('Category', { category: categoryName });
+  const handleCategoryPress = (categoryName: string, categoryId?: string) => {
+    navigation.navigate('Category', { 
+      category: categoryName,
+      categoryId: categoryId 
+    });
   };
 
   const onRefresh = React.useCallback(async () => {
@@ -37,7 +40,7 @@ export default function CategoriesScreen() {
       category={item.name}
       image={item.image}
       isSelected={false}
-      onPress={handleCategoryPress}
+      onPress={() => handleCategoryPress(item.name, item.id)}
       itemCount={0}
     />
   );

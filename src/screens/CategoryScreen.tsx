@@ -8,6 +8,7 @@ import {
   TextInput,
   FlatList,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -103,6 +104,13 @@ export default function CategoryScreen() {
         );
       }}
     >
+      {item.image && (
+        <Image 
+          source={{ uri: item.image }} 
+          style={styles.subcategoryImage}
+          resizeMode="cover"
+        />
+      )}
       <Text
         style={[
           styles.subcategoryText,
@@ -278,13 +286,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   subcategoryItem: {
-    padding: 12,
+    padding: 8,
     borderRadius: 8,
     marginBottom: 8,
     borderWidth: 1,
+    alignItems: 'center',
+  },
+  subcategoryImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginBottom: 4,
   },
   subcategoryText: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '500',
     textAlign: 'center',
   },
