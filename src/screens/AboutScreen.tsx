@@ -139,7 +139,7 @@ export default function AboutScreen() {
           </TouchableOpacity>
           
           <Text style={[styles.legalText, { color: colors.gray }]}>
-            © 2024 Jhola Bazar. All rights reserved.
+            © 2025 Jhola Bazar. All rights reserved.
           </Text>
         </View>
       </ScrollView>

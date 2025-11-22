@@ -43,9 +43,13 @@ export default function CategoryScreen() {
     try {
       setLoading(true);
       if (categoryId) {
-        const data = await categoryAPI.getCategoryById(categoryId);
-        setCategoryData(data);
-        setProducts(data.products || []);
+        // Fetch category details and subcategories
+        const categoryData = await categoryAPI.getCategoryById(categoryId);
+        setCategoryData(categoryData);
+        
+        // Fetch all products for this category
+        const categoryProducts = await productAPI.getCategoryProducts(categoryId);
+        setProducts(categoryProducts);
       } else {
         const allProducts = await productAPI.getAllProducts();
         setProducts(allProducts);
@@ -60,30 +64,30 @@ export default function CategoryScreen() {
   const handleSearch = async () => {
     try {
       setSearchLoading(true);
-      let filtered = products;
-
-      // Filter by subcategory
-      if (selectedSubcategory) {
-        filtered = filtered.filter(product => 
-          product.category === selectedSubcategory
-        );
-      }
-
-      // Filter by search query
+      
       if (searchQuery.trim()) {
         const searchResults = await productAPI.searchProducts(searchQuery);
-        filtered = searchResults.filter(product => {
-          if (selectedSubcategory) {
-            return product.category === selectedSubcategory;
-          }
-          return categoryId ? product.category === categoryName : true;
-        });
+        setFilteredProducts(searchResults);
+      } else {
+        // If no search query, show current products (either all category products or subcategory products)
+        setFilteredProducts(products);
       }
-
-      setFilteredProducts(filtered);
     } catch (error) {
       console.error('Error searching products:', error);
       setFilteredProducts(products);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const fetchSubcategoryProducts = async (subcategoryId: string) => {
+    try {
+      setSearchLoading(true);
+      const subcategoryProducts = await productAPI.getCategoryProducts(subcategoryId);
+      setFilteredProducts(subcategoryProducts);
+    } catch (error) {
+      console.error('Error fetching subcategory products:', error);
+      setFilteredProducts([]);
     } finally {
       setSearchLoading(false);
     }
@@ -94,30 +98,40 @@ export default function CategoryScreen() {
       style={[
         styles.subcategoryItem,
         {
-          backgroundColor: selectedSubcategory === item.name ? colors.primary : colors.card,
-          borderColor: colors.border,
+          backgroundColor: selectedSubcategory === item.id ? colors.primary : 'transparent',
+          borderColor: selectedSubcategory === item.id ? colors.primary : colors.border,
+          shadowColor: selectedSubcategory === item.id ? colors.primary : 'transparent',
+          elevation: selectedSubcategory === item.id ? 3 : 0,
         },
       ]}
       onPress={() => {
-        setSelectedSubcategory(
-          selectedSubcategory === item.name ? null : item.name
-        );
+        if (selectedSubcategory === item.id) {
+          setSelectedSubcategory(null);
+          setFilteredProducts(products);
+        } else {
+          setSelectedSubcategory(item.id);
+          fetchSubcategoryProducts(item.id);
+        }
       }}
     >
       {item.image && (
-        <Image 
-          source={{ uri: item.image }} 
-          style={styles.subcategoryImage}
-          resizeMode="cover"
-        />
+        <View style={[styles.subcategoryImageContainer, { borderColor: selectedSubcategory === item.id ? '#fff' : colors.border }]}>
+          <Image 
+            source={{ uri: item.image }} 
+            style={styles.subcategoryImage}
+            resizeMode="cover"
+          />
+        </View>
       )}
       <Text
         style={[
           styles.subcategoryText,
           {
-            color: selectedSubcategory === item.name ? '#fff' : colors.text,
+            color: selectedSubcategory === item.id ? '#fff' : colors.text,
+            fontWeight: selectedSubcategory === item.id ? 'bold' : '500',
           },
         ]}
+        numberOfLines={2}
       >
         {item.name}
       </Text>
@@ -125,7 +139,7 @@ export default function CategoryScreen() {
   );
 
   const renderProduct = ({ item }: { item: any }) => (
-    <View style={styles.productItem}>
+    <View style={styles.featuredCard}>
       <ProductCard product={item} />
     </View>
   );
@@ -162,8 +176,10 @@ export default function CategoryScreen() {
       </View>
 
       {/* Search Bar */}
-      <View style={[styles.searchContainer, { backgroundColor: colors.card }]}>
-        <Icon name="search" size={20} color={colors.gray} />
+      <View style={[styles.searchContainer, { backgroundColor: colors.card, shadowColor: colors.primary }]}>
+        <View style={[styles.searchIconContainer, { backgroundColor: colors.primary + '15' }]}>
+          <Icon name="search" size={20} color={colors.primary} />
+        </View>
         <TextInput
           style={[styles.searchInput, { color: colors.text }]}
           placeholder="Search products..."
@@ -179,22 +195,30 @@ export default function CategoryScreen() {
       <View style={styles.content}>
         {/* Subcategories Sidebar */}
         {categoryData?.children && categoryData.children.length > 0 && (
-          <View style={[styles.sidebar, { backgroundColor: colors.card, borderRightColor: colors.border }]}>
-            <Text style={[styles.sidebarTitle, { color: colors.text }]}>Categories</Text>
+          <View style={[styles.sidebar, { backgroundColor: colors.background }]}>
+            <View style={[styles.sidebarHeader, { backgroundColor: colors.primary + '10' }]}>
+              {/* <Icon name="category" size={16} color={colors.primary} /> */}
+              <Text style={[styles.sidebarTitle, { color: colors.primary }]}>Categories</Text>
+            </View>
             <TouchableOpacity
               style={[
                 styles.subcategoryItem,
                 {
-                  backgroundColor: !selectedSubcategory ? colors.primary : colors.card,
-                  borderColor: colors.border,
+                  backgroundColor: !selectedSubcategory ? colors.primary : 'transparent',
+                  borderColor: !selectedSubcategory ? colors.primary : colors.border,
+                  shadowColor: !selectedSubcategory ? colors.primary : 'transparent',
+                  elevation: !selectedSubcategory ? 3 : 0,
                 },
               ]}
-              onPress={() => setSelectedSubcategory(null)}
+              onPress={() => {
+                setSelectedSubcategory(null);
+                setFilteredProducts(products);
+              }}
             >
               <Text
                 style={[
                   styles.subcategoryText,
-                  { color: !selectedSubcategory ? '#fff' : colors.text },
+                  { color: !selectedSubcategory ? '#fff' : colors.text, fontWeight: !selectedSubcategory ? 'bold' : '500' },
                 ]}
               >
                 All
@@ -212,18 +236,30 @@ export default function CategoryScreen() {
         {/* Products Grid */}
         <View style={styles.productsContainer}>
           {filteredProducts.length > 0 ? (
-            <FlatList
-              data={filteredProducts}
-              renderItem={renderProduct}
-              keyExtractor={(item) => item.id}
-              numColumns={2}
-              columnWrapperStyle={styles.productRow}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.productsList}
-            />
+            <>
+              <View style={[styles.productsHeader, { backgroundColor: colors.card }]}>
+                <Text style={[styles.productsCount, { color: colors.text }]}>
+                  {filteredProducts.length} Products
+                </Text>
+                <View style={styles.filterBadge}>
+                  <Icon name="tune" size={16} color={colors.primary} />
+                </View>
+              </View>
+              <FlatList
+                data={filteredProducts}
+                renderItem={renderProduct}
+                keyExtractor={(item) => item.id}
+                numColumns={2}
+                columnWrapperStyle={styles.productRow}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.productsList}
+              />
+            </>
           ) : (
             <View style={styles.emptyContainer}>
-              <Icon name="search-off" size={64} color={colors.gray} />
+              <View style={[styles.emptyIconContainer, { backgroundColor: colors.primary + '10' }]}>
+                <Icon name="search-off" size={48} color={colors.primary} />
+              </View>
               <Text style={[styles.emptyTitle, { color: colors.text }]}>
                 No products found
               </Text>
@@ -261,10 +297,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     margin: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    gap: 12,
+  },
+  searchIconContainer: {
+    width: 32,
+    height: 32,
     borderRadius: 8,
-    gap: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   searchInput: {
     flex: 1,
@@ -275,46 +322,90 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   sidebar: {
-    width: 120,
-    borderRightWidth: 1,
+    width: 90,
     padding: 8,
+  },
+  sidebarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginBottom: 12,
+    gap: 6,
   },
   sidebarTitle: {
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: 'bold',
-    marginBottom: 12,
-    paddingHorizontal: 8,
   },
   subcategoryItem: {
-    padding: 8,
-    borderRadius: 8,
-    marginBottom: 8,
-    borderWidth: 1,
+    padding: 10,
+    borderRadius: 12,
+    marginBottom: 10,
+    borderWidth: 1.5,
     alignItems: 'center',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  subcategoryImageContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 2,
+    padding: 2,
+    marginBottom: 6,
   },
   subcategoryImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginBottom: 4,
+    width: '100%',
+    height: '100%',
+    borderRadius: 16,
   },
   subcategoryText: {
-    fontSize: 10,
-    fontWeight: '500',
+    fontSize: 9,
     textAlign: 'center',
+    lineHeight: 12,
   },
   productsContainer: {
     flex: 1,
+    backgroundColor: 'transparent',
+  },
+  productsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginHorizontal: 8,
+    marginBottom: 8,
+    borderRadius: 10,
+    elevation: 1,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+  },
+  productsCount: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  filterBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#F0F8FF',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   productsList: {
     padding: 8,
   },
   productRow: {
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
   },
-  productItem: {
-    width: '48%',
-    marginBottom: 16,
+  featuredCard: {
+    width: 300,
+    marginRight: -140,
   },
   loadingContainer: {
     flex: 1,
@@ -330,6 +421,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 32,
+  },
+  emptyIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   emptyTitle: {
     fontSize: 18,

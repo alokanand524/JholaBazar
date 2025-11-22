@@ -227,6 +227,26 @@ export const productAPI = {
     if (!response.ok) throw new Error('Failed to search products');
     return (data.data.products || []).map(transformProduct);
   },
+
+  getCategoryProducts: async (categoryId: string): Promise<Product[]> => {
+    const sanitizedCategoryId = InputValidator.sanitizeString(categoryId);
+    if (!sanitizedCategoryId) throw new Error('Invalid category ID');
+    
+    const url = `${API_BASE_URL}/products/category/${sanitizedCategoryId}/products`;
+    logger.info('API Request - Get Category Products', { url, method: 'GET', categoryId: sanitizedCategoryId });
+    
+    const response = await fetch(url);
+    const data = await response.json();
+    
+    logger.info('API Response - Get Category Products', {
+      status: response.status,
+      statusText: response.statusText,
+      response: data
+    });
+    
+    if (!response.ok) throw new Error('Failed to fetch category products');
+    return (data.data.products || []).map(transformProduct);
+  },
 };
 
 export const cartAPI = {

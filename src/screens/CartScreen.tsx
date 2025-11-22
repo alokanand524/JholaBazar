@@ -50,8 +50,12 @@ export default function CartScreen() {
     }
   };
 
-  // Use only API data
-  const cartItems = apiCartData?.items || [];
+  // Use only API data and sort free products to top
+  const cartItems = (apiCartData?.items || []).sort((a: any, b: any) => {
+    if (a.isFreeProduct && !b.isFreeProduct) return -1;
+    if (!a.isFreeProduct && b.isFreeProduct) return 1;
+    return 0;
+  });
   const cartSummary = apiCartData?.summary;
   
   const subtotal = cartSummary?.subtotal || 0;
@@ -91,14 +95,23 @@ export default function CartScreen() {
 
   const renderCartItem = ({ item }: { item: any }) => {
     const itemName = item.variant?.name || item.name;
-    const itemImage = item.variant?.images?.[0] || item.product?.images?.[0] || item.image;
+    const itemImage = item.product?.images || item.variant?.images || item.image;
     const itemPrice = item.unitPrice;
     const itemUnit = `${item.variant?.weight} ${item.variant?.baseUnit}`;
     const cartItemId = item.id;
     
     return (
-      <View style={[styles.cartItem, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <Image source={{ uri: itemImage }} style={styles.itemImage} />
+      <View style={[
+        styles.cartItem, 
+        { backgroundColor: colors.card, borderBottomColor: colors.border },
+        item.isFreeProduct && { borderWidth: 2, borderColor: '#FF8C00', borderRadius: 12, marginHorizontal: 8, marginVertical: 4 }
+      ]}>
+        <Image 
+          source={{ uri: itemImage }} 
+          style={styles.itemImage}
+          defaultSource={require('../../assets/images/jhola-bazar.png')}
+          onError={() => console.log('Image load error for:', itemImage)}
+        />
         
         <View style={styles.itemDetails}>
           <Text style={[styles.itemName, { color: colors.text }]} numberOfLines={2}>
@@ -241,44 +254,54 @@ export default function CartScreen() {
 
 
 
-        {/* Free Delivery Message */}
-        {cartSummary?.thresholds?.freeDelivery && subtotal < cartSummary.thresholds.freeDelivery.amount && (
-          <View style={[styles.freeDeliveryMessage, { backgroundColor: '#FFF3CD', borderColor: '#FFEAA7' }]}>
-            <Icon name="local-shipping" size={16} color="#856404" />
-            <Text style={styles.freeDeliveryText}>
-              Add ₹{(cartSummary.thresholds.freeDelivery.amount - subtotal).toFixed(2)} more for free delivery
-            </Text>
-          </View>
-        )}
-
-
       </ScrollView>
+
+      {/* Free Delivery Message */}
+      {cartSummary?.deliveryInfo && !cartSummary.deliveryInfo.isEligibleForFreeDelivery && (
+        <View style={[styles.freeDeliveryMessage, { backgroundColor: '#E8F5E8', borderColor: '#4CAF50' }]}>
+          <Icon name="local-shipping" size={18} color="#2E7D32" />
+          <Text style={[styles.freeDeliveryText, { color: '#2E7D32' }]}>
+            Add ₹{cartSummary.deliveryInfo.amountNeededForFreeDelivery} more for free delivery & save ₹{cartSummary.deliveryInfo.deliveryCharge}
+          </Text>
+        </View>
+      )}
 
       {/* Threshold Information */}
       {isLoggedIn && apiCartData && cartSummary?.thresholds?.isEnabled && (
-        <View style={[styles.thresholdCard, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
+        <View style={[styles.thresholdCard, { backgroundColor: colors.card }]}>
           {cartSummary.thresholds.current && (
-            <View style={styles.currentLevel}>
-              <View style={styles.levelDot} />
-              <Text style={[styles.levelText, { color: colors.primary }]}>
-                ✓ {cartSummary.thresholds.current.name} Unlocked
-              </Text>
+            <View style={styles.currentLevelCreative}>
+              <View style={styles.levelBadge}>
+                <Icon name="stars" size={16} color="#FFD700" />
+                <Text style={styles.levelBadgeText}>{cartSummary.thresholds.current.name}</Text>
+              </View>
+              <Text style={[styles.levelUnlockedText, { color: colors.primary }]}>Unlocked!</Text>
             </View>
           )}
           
           {cartSummary.thresholds.next && (
-            <View style={styles.nextLevel}>
-              <View style={styles.progressTrack}>
-                <View 
-                  style={[
-                    styles.progressActive, 
-                    { width: `${Math.min(100, (subtotal / cartSummary.thresholds.next.amount) * 100)}%` }
-                  ]} 
-                />
+            <View style={styles.nextLevelCreative}>
+              <View style={styles.progressContainer}>
+                <View style={styles.progressTrackCreative}>
+                  <View 
+                    style={[
+                      styles.progressActiveCreative, 
+                      { width: `${Math.min(100, (subtotal / cartSummary.thresholds.next.amount) * 100)}%` }
+                    ]} 
+                  />
+                </View>
+                <Text style={styles.progressPercentage}>
+                  {Math.round((subtotal / cartSummary.thresholds.next.amount) * 100)}%
+                </Text>
               </View>
-              <Text style={[styles.nextText, { color: colors.gray }]}>
-                ₹{cartSummary.thresholds.next.amountNeeded} away from {cartSummary.thresholds.next.name}
-              </Text>
+              <View style={styles.nextLevelInfo}>
+                <Text style={[styles.nextLevelTitle, { color: colors.text }]}>
+                  🎯 Next: {cartSummary.thresholds.next.name}
+                </Text>
+                <Text style={[styles.nextLevelAmount, { color: colors.primary }]}>
+                  ₹{cartSummary.thresholds.next.amountNeeded} to go
+                </Text>
+              </View>
             </View>
           )}
         </View>
@@ -419,15 +442,16 @@ const styles = StyleSheet.create({
   freeDeliveryMessage: {
     flexDirection: 'row',
     alignItems: 'center',
-    margin: 16,
-    padding: 12,
-    borderRadius: 8,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    padding: 14,
+    borderRadius: 10,
     borderWidth: 1,
-    gap: 8,
+    gap: 10,
   },
   freeDeliveryText: {
-    fontSize: 12,
-    color: '#856404',
+    fontSize: 13,
+    fontWeight: '500',
     flex: 1,
   },
   checkoutContainer: {
@@ -510,39 +534,75 @@ const styles = StyleSheet.create({
   },
   thresholdCard: {
     padding: 16,
-    borderTopWidth: 1,
-    gap: 12,
+    margin: 16,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    gap: 16,
   },
-  currentLevel: {
+  currentLevelCreative: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
   },
-  levelDot: {
-    width: 8,
+  levelBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF8E1',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 6,
+  },
+  levelBadgeText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#F57C00',
+  },
+  levelUnlockedText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  nextLevelCreative: {
+    gap: 12,
+  },
+  progressContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  progressTrackCreative: {
+    flex: 1,
     height: 8,
+    backgroundColor: '#E0E0E0',
     borderRadius: 4,
-    backgroundColor: '#00B761',
+    overflow: 'hidden',
   },
-  levelText: {
+  progressActiveCreative: {
+    height: '100%',
+    backgroundColor: '#4CAF50',
+    borderRadius: 4,
+  },
+  progressPercentage: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#4CAF50',
+    minWidth: 35,
+  },
+  nextLevelInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  nextLevelTitle: {
     fontSize: 14,
     fontWeight: '500',
   },
-  nextLevel: {
-    gap: 8,
-  },
-  progressTrack: {
-    height: 4,
-    backgroundColor: '#E0E0E0',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressActive: {
-    height: '100%',
-    backgroundColor: '#00B761',
-    borderRadius: 2,
-  },
-  nextText: {
-    fontSize: 12,
+  nextLevelAmount: {
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 });
