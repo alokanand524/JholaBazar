@@ -229,13 +229,13 @@ export default function HomeScreen() {
     }, [fetchCart])
   );
 
-  // Auto-refresh cart every 10 seconds (reduced frequency)
+  // Auto-refresh cart every 1 second
   useEffect(() => {
     const interval = setInterval(() => {
       if (isLoggedIn) {
         fetchCart();
       }
-    }, 10000); // Changed from 1000ms to 10000ms
+    }, 1000);
 
     return () => clearInterval(interval);
   }, [isLoggedIn]);
