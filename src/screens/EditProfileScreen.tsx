@@ -160,7 +160,11 @@ export default function EditProfileScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        scrollEnabled={!showDayPicker && !showMonthPicker && !showYearPicker}
+      >
         <View style={styles.formContainer}>
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.text }]}>
@@ -257,7 +261,7 @@ export default function EditProfileScreen() {
               Date of Birth
             </Text>
             <View style={styles.dateContainer}>
-              <View style={styles.dateDropdown}>
+              <View style={[styles.dateDropdown, { zIndex: showDayPicker ? 9999 : 1 }]}>
                 <Text style={[styles.dropdownLabel, { color: colors.gray }]}>Day</Text>
                 <View style={[styles.dropdown, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <TouchableOpacity
@@ -276,15 +280,11 @@ export default function EditProfileScreen() {
                 </View>
                 {showDayPicker && (
                   <View style={[styles.dropdownList, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                    <ScrollView 
-                      style={styles.scrollableList} 
-                      showsVerticalScrollIndicator={true}
-                      nestedScrollEnabled={true}
-                      bounces={false}
-                    >
-                      {days.map((item) => (
+                    <FlatList 
+                      data={days}
+                      keyExtractor={(item) => item}
+                      renderItem={({ item }) => (
                         <TouchableOpacity
-                          key={item}
                           style={[styles.dropdownItem, { borderBottomColor: colors.border }]}
                           onPress={() => {
                             updateDateOfBirth('day', item);
@@ -293,13 +293,16 @@ export default function EditProfileScreen() {
                         >
                           <Text style={[styles.dropdownItemText, { color: colors.text }]}>{item}</Text>
                         </TouchableOpacity>
-                      ))}
-                    </ScrollView>
+                      )}
+                      scrollEnabled={true}
+                      nestedScrollEnabled={true}
+                      showsVerticalScrollIndicator={true}
+                    />
                   </View>
                 )}
               </View>
               
-              <View style={styles.dateDropdown}>
+              <View style={[styles.dateDropdown, { zIndex: showMonthPicker ? 9998 : 1 }]}>
                 <Text style={[styles.dropdownLabel, { color: colors.gray }]}>Month</Text>
                 <View style={[styles.dropdown, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <TouchableOpacity
@@ -318,15 +321,11 @@ export default function EditProfileScreen() {
                 </View>
                 {showMonthPicker && (
                   <View style={[styles.dropdownList, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                    <ScrollView 
-                      style={styles.scrollableList} 
-                      showsVerticalScrollIndicator={true}
-                      nestedScrollEnabled={true}
-                      bounces={false}
-                    >
-                      {months.map((item) => (
+                    <FlatList 
+                      data={months}
+                      keyExtractor={(item) => item.value}
+                      renderItem={({ item }) => (
                         <TouchableOpacity
-                          key={item.value}
                           style={[styles.dropdownItem, { borderBottomColor: colors.border }]}
                           onPress={() => {
                             updateDateOfBirth('month', item.value);
@@ -335,13 +334,16 @@ export default function EditProfileScreen() {
                         >
                           <Text style={[styles.dropdownItemText, { color: colors.text }]}>{item.label}</Text>
                         </TouchableOpacity>
-                      ))}
-                    </ScrollView>
+                      )}
+                      scrollEnabled={true}
+                      nestedScrollEnabled={true}
+                      showsVerticalScrollIndicator={true}
+                    />
                   </View>
                 )}
               </View>
               
-              <View style={styles.dateDropdown}>
+              <View style={[styles.dateDropdown, { zIndex: showYearPicker ? 9997 : 1 }]}>
                 <Text style={[styles.dropdownLabel, { color: colors.gray }]}>Year</Text>
                 <View style={[styles.dropdown, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <TouchableOpacity
@@ -360,15 +362,11 @@ export default function EditProfileScreen() {
                 </View>
                 {showYearPicker && (
                   <View style={[styles.dropdownList, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                    <ScrollView 
-                      style={styles.scrollableList} 
-                      showsVerticalScrollIndicator={true}
-                      nestedScrollEnabled={true}
-                      bounces={false}
-                    >
-                      {years.map((item) => (
+                    <FlatList 
+                      data={years}
+                      keyExtractor={(item) => item}
+                      renderItem={({ item }) => (
                         <TouchableOpacity
-                          key={item}
                           style={[styles.dropdownItem, { borderBottomColor: colors.border }]}
                           onPress={() => {
                             updateDateOfBirth('year', item);
@@ -377,8 +375,11 @@ export default function EditProfileScreen() {
                         >
                           <Text style={[styles.dropdownItemText, { color: colors.text }]}>{item}</Text>
                         </TouchableOpacity>
-                      ))}
-                    </ScrollView>
+                      )}
+                      scrollEnabled={true}
+                      nestedScrollEnabled={true}
+                      showsVerticalScrollIndicator={true}
+                    />
                   </View>
                 )}
               </View>
@@ -472,7 +473,6 @@ const styles = StyleSheet.create({
   dateDropdown: {
     flex: 1,
     position: 'relative',
-    zIndex: 1,
   },
   dropdownLabel: {
     fontSize: 12,
@@ -496,11 +496,12 @@ const styles = StyleSheet.create({
     top: '100%',
     left: 0,
     right: 0,
-    height: 200,
+    height: 150,
     borderRadius: 8,
     borderWidth: 1,
-    zIndex: 1000,
-    elevation: 5,
+    marginTop: 4,
+    zIndex: 9999,
+    elevation: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
@@ -510,12 +511,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   dropdownItem: {
-    paddingVertical: 15,
-    paddingHorizontal: 12,
-    borderBottomWidth: 0.5,
-  },
-  dropdownItem: {
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 12,
     borderBottomWidth: 0.5,
   },
