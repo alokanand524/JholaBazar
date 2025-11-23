@@ -7,8 +7,9 @@ import {
   ScrollView,
   ActivityIndicator,
   Image,
+  BackHandler,
 } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
 import { useTheme } from '../hooks/useTheme';
@@ -18,7 +19,7 @@ export default function OrderDetailsScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { colors } = useTheme();
-  const { orderId } = route.params;
+  const { orderId, fromOrderPlacement } = route.params || {};
   
   const [orderDetails, setOrderDetails] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -26,6 +27,24 @@ export default function OrderDetailsScreen() {
   useEffect(() => {
     fetchOrderDetails();
   }, [orderId]);
+
+  // Handle back navigation for order placement flow
+  useFocusEffect(
+    React.useCallback(() => {
+      if (fromOrderPlacement) {
+        const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+          // Navigate to Home and refresh
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'MainTabs', params: { refresh: true } }],
+          });
+          return true;
+        });
+        
+        return () => backHandler.remove();
+      }
+    }, [fromOrderPlacement, navigation])
+  );
 
   const fetchOrderDetails = async () => {
     try {
@@ -122,7 +141,17 @@ export default function OrderDetailsScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={() => {
+          if (fromOrderPlacement) {
+            // Navigate to Home and refresh
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'MainTabs', params: { refresh: true } }],
+            });
+          } else {
+            navigation.goBack();
+          }
+        }}>
           <Icon name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Order Details</Text>

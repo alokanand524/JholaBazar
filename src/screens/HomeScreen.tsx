@@ -248,13 +248,25 @@ export default function HomeScreen() {
   // Silent refresh when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      // Silent refresh without showing loading states
-      fetchCart();
-      fetchProducts();
-      fetchFeaturedProducts();
-      fetchCategories();
-      checkDeliveryService();
-    }, [fetchCart])
+      // Check if we need to refresh after order placement
+      const shouldRefresh = navigation.getState()?.routes?.find(route => 
+        route.name === 'MainTabs' && route.params?.refresh
+      );
+      
+      if (shouldRefresh) {
+        // Full refresh after order placement
+        onRefresh();
+        // Clear the refresh param
+        navigation.setParams({ refresh: undefined });
+      } else {
+        // Silent refresh without showing loading states
+        fetchCart();
+        fetchProducts();
+        fetchFeaturedProducts();
+        fetchCategories();
+        checkDeliveryService();
+      }
+    }, [fetchCart, navigation, onRefresh])
   );
 
   // Auto-refresh cart every 1 second

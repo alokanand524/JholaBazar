@@ -8,10 +8,13 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
+  Animated,
+  BackHandler,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import LottieView from 'lottie-react-native';
 
 import { useTheme } from '../hooks/useTheme';
 import { RootState } from '../store/store';
@@ -36,6 +39,13 @@ export default function CheckoutScreen() {
   const [showPaymentDropdown, setShowPaymentDropdown] = useState(false);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' as 'success' | 'error' });
   const [defaultAddress, setDefaultAddress] = useState<any>(null);
+  
+  // Enhanced states
+  const [validationStep, setValidationStep] = useState('');
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [orderDetails, setOrderDetails] = useState<any>(null);
+  const [progressAnim] = useState(new Animated.Value(0));
+  const [celebrationAnim] = useState(new Animated.Value(0));
 
   useEffect(() => {
     if (isLoggedIn) {
@@ -86,17 +96,78 @@ export default function CheckoutScreen() {
     }
   };
 
-  const handlePlaceOrder = async () => {
+  const validateOrder = async () => {
     const addressToUse = selectedAddress || defaultAddress;
+    
+    // 1. Validate Address
+    setValidationStep('Validating delivery address...');
     if (!addressToUse) {
       setToast({ visible: true, message: 'Please select a delivery address', type: 'error' });
-      return;
+      return false;
     }
+    
+    // 2. Check Address Serviceability
+    try {
+      const serviceResponse = await fetch('https://api.jholabazar.com/api/v1/service-area/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          latitude: addressToUse.latitude?.toString() || '0',
+          longitude: addressToUse.longitude?.toString() || '0',
+        }),
+      });
+      const serviceData = await serviceResponse.json();
+      
+      if (!serviceData.success || !serviceData.data?.available) {
+        setToast({ visible: true, message: 'Delivery not available to this address', type: 'error' });
+        return false;
+      }
+    } catch (error) {
+      setToast({ visible: true, message: 'Unable to verify delivery area', type: 'error' });
+      return false;
+    }
+    
+    // 3. Validate Items Availability
+    setValidationStep('Checking item availability...');
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
+    // 4. Validate Payment Method
+    setValidationStep('Confirming payment method...');
+    if (!paymentMethod) {
+      setToast({ visible: true, message: 'Please select a payment method', type: 'error' });
+      return false;
+    }
+    
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return true;
+  };
 
+  const handlePlaceOrder = async () => {
+    const addressToUse = selectedAddress || defaultAddress;
+    
     setPlacing(true);
     setShowConfirmModal(false);
-
+    
+    // Disable back navigation
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => true);
+    
     try {
+      // Pre-order validation
+      const isValid = await validateOrder();
+      if (!isValid) {
+        setPlacing(false);
+        backHandler.remove();
+        return;
+      }
+      
+      // Start progress animation
+      setValidationStep('Processing your order...');
+      Animated.timing(progressAnim, {
+        toValue: 1,
+        duration: 2000,
+        useNativeDriver: false,
+      }).start();
+
       const orderPayload = {
         storeId: '0d29835f-3840-4d72-a26d-ed96ca744a34',
         deliveryAddressId: addressToUse.id,
@@ -118,19 +189,24 @@ export default function CheckoutScreen() {
       console.log('Order API Response:', JSON.stringify(data, null, 2));
       
       if (data.success) {
+        setOrderDetails(data.data);
+        
         if (paymentMethod === 'online' && data.data?.payment?.gatewayData) {
           // Handle Razorpay payment for online orders
           await handleRazorpayPayment(data.data);
         } else {
-          // COD order success
-          setToast({ visible: true, message: 'Order placed successfully! 🎉', type: 'success' });
-          console.log('✅ Order placed successfully');
+          // COD order success - show success screen
+          setValidationStep('Order confirmed! 🎉');
           setTimeout(() => {
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'MainTabs' }],
-            });
-          }, 2000);
+            setPlacing(false);
+            setShowSuccessModal(true);
+            // Start celebration animation
+            Animated.timing(celebrationAnim, {
+              toValue: 1,
+              duration: 1000,
+              useNativeDriver: true,
+            }).start();
+          }, 1000);
         }
       } else {
         console.log('Order creation failed:', data.message);
@@ -140,7 +216,12 @@ export default function CheckoutScreen() {
       console.error('Error placing order:', error);
       setToast({ visible: true, message: `Failed to place order: ${error.message || 'Network error'}`, type: 'error' });
     } finally {
-      setPlacing(false);
+      if (!showSuccessModal) {
+        setPlacing(false);
+      }
+      backHandler.remove();
+      setValidationStep('');
+      progressAnim.setValue(0);
     }
   };
 
@@ -170,14 +251,15 @@ export default function CheckoutScreen() {
       console.log('Verification Response:', JSON.stringify(data, null, 2));
 
       if (data.success) {
-        setToast({ visible: true, message: 'Payment verified! Order confirmed! 🎉', type: 'success' });
-        console.log('✅ Payment verified');
-        setTimeout(() => {
-          navigation.reset({
-            index: 0,
-            routes: [{ name: 'MainTabs' }],
-          });
-        }, 2000);
+        setOrderDetails(data.data);
+        setPlacing(false);
+        setShowSuccessModal(true);
+        // Start celebration animation
+        Animated.timing(celebrationAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }).start();
       } else {
         setToast({ visible: true, message: data.message || 'Payment verification failed. Please contact support.', type: 'error' });
       }
@@ -501,6 +583,123 @@ export default function CheckoutScreen() {
         </View>
       </Modal>
       
+      {/* Loading Progress Modal */}
+      <Modal
+        visible={placing}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {}}
+      >
+        <View style={styles.loadingOverlay}>
+          <View style={[styles.loadingContent, { backgroundColor: colors.card }]}>
+            <View style={styles.progressContainer}>
+              <Animated.View 
+                style={[
+                  styles.progressBar,
+                  { 
+                    backgroundColor: colors.primary,
+                    width: progressAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ['0%', '100%']
+                    })
+                  }
+                ]}
+              />
+            </View>
+            <ActivityIndicator size="large" color={colors.primary} style={styles.loadingSpinner} />
+            <Text style={[styles.loadingText, { color: colors.text }]}>{validationStep}</Text>
+            <Text style={[styles.loadingSubtext, { color: colors.gray }]}>Please don't close the app</Text>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Success Modal */}
+      <Modal
+        visible={showSuccessModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {}}
+      >
+        <View style={styles.successOverlay}>
+          <Animated.View 
+            style={[
+              styles.successContent, 
+              { 
+                backgroundColor: colors.card,
+                transform: [{
+                  scale: celebrationAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.8, 1]
+                  })
+                }]
+              }
+            ]}
+          >
+            {/* Celebration Animation */}
+            <View style={styles.celebrationContainer}>
+              <Animated.View 
+                style={[
+                  styles.successIcon,
+                  {
+                    backgroundColor: colors.primary,
+                    transform: [{
+                      scale: celebrationAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0, 1.2]
+                      })
+                    }]
+                  }
+                ]}
+              >
+                <Icon name="check" size={40} color="#fff" />
+              </Animated.View>
+            </View>
+            
+            <Text style={[styles.successTitle, { color: colors.text }]}>Order Placed Successfully! 🎉</Text>
+            <Text style={[styles.successSubtitle, { color: colors.gray }]}>Thank you for your order</Text>
+            
+            {orderDetails && (
+              <View style={styles.orderInfo}>
+                <Text style={[styles.orderNumber, { color: colors.text }]}>Order #{orderDetails.order?.orderNumber}</Text>
+                <Text style={[styles.deliveryTime, { color: colors.primary }]}>Estimated delivery: 10-30 minutes</Text>
+              </View>
+            )}
+            
+            {/* Quick Actions */}
+            <View style={styles.successActions}>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.trackButton, { backgroundColor: colors.primary }]}
+                onPress={() => {
+                  setShowSuccessModal(false);
+                  // Navigate to Order Details page with the specific order
+                  navigation.navigate('OrderDetails', { 
+                    orderId: orderDetails.order?.id,
+                    fromOrderPlacement: true 
+                  });
+                }}
+              >
+                <Icon name="local-shipping" size={20} color="#fff" />
+                <Text style={styles.trackButtonText}>Track Order</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.actionButton, styles.continueButton, { borderColor: colors.border }]}
+                onPress={() => {
+                  setShowSuccessModal(false);
+                  navigation.reset({
+                    index: 0,
+                    routes: [{ name: 'MainTabs' }],
+                  });
+                }}
+              >
+                <Icon name="shopping-cart" size={20} color={colors.text} />
+                <Text style={[styles.continueButtonText, { color: colors.text }]}>Continue Shopping</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </View>
+      </Modal>
+
       <Toast
         visible={toast.visible}
         message={toast.message}
@@ -803,5 +1002,120 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     textAlign: 'center',
+  },
+  // Loading Progress Modal
+  loadingOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingContent: {
+    margin: 20,
+    padding: 30,
+    borderRadius: 16,
+    alignItems: 'center',
+    minWidth: 280,
+  },
+  progressContainer: {
+    width: '100%',
+    height: 4,
+    backgroundColor: '#E0E0E0',
+    borderRadius: 2,
+    marginBottom: 20,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  loadingSpinner: {
+    marginBottom: 16,
+  },
+  loadingText: {
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  loadingSubtext: {
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  // Success Modal
+  successOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  successContent: {
+    margin: 20,
+    padding: 30,
+    borderRadius: 20,
+    alignItems: 'center',
+    minWidth: 300,
+  },
+  celebrationContainer: {
+    marginBottom: 20,
+  },
+  successIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  successTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  successSubtitle: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  orderInfo: {
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  orderNumber: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  deliveryTime: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  successActions: {
+    width: '100%',
+    gap: 12,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    gap: 8,
+  },
+  trackButton: {
+    marginBottom: 8,
+  },
+  trackButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  continueButton: {
+    borderWidth: 1,
+  },
+  continueButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
