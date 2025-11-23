@@ -32,7 +32,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isServiceable
   const { isLoggedIn } = useSelector((state: RootState) => state.user);
   const [cartItem, setCartItem] = useState<any>(null);
 
-  // Check cart status from API
+  // Check cart status from API - sync with cart changes
   useEffect(() => {
     if (isLoggedIn) {
       checkCartStatus();
@@ -40,6 +40,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isServiceable
       setCartItem(null);
     }
   }, [isLoggedIn, product.id]);
+
+  // Listen to cart updates to refresh card state
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      if (isLoggedIn) {
+        checkCartStatus();
+      }
+    });
+    return unsubscribe;
+  }, [navigation, isLoggedIn]);
 
   const checkCartStatus = async () => {
     if (!isLoggedIn) return;
@@ -172,6 +182,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isServiceable
         console.log('Adding to Redux:', cartData);
         dispatch(addToCart(cartData));
         onCartUpdated();
+        // Immediately update local state
         await checkCartStatus();
       } else {
         console.log('API failed:', data.message);
@@ -199,8 +210,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isServiceable
       });
       
       if (response.ok) {
-        await checkCartStatus();
         onCartUpdated();
+        // Immediately sync cart state
+        await checkCartStatus();
       }
     } catch (error) {
       console.error('Error incrementing quantity:', error);
@@ -219,6 +231,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isServiceable
           });
           
           if (response.ok) {
+            // Immediately update local state
             setCartItem(null);
             onCartUpdated();
           }
@@ -234,8 +247,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isServiceable
         });
         
         if (response.ok) {
-          await checkCartStatus();
           onCartUpdated();
+          // Immediately sync cart state
+          await checkCartStatus();
         }
       } catch (error) {
         console.error('Error decrementing quantity:', error);

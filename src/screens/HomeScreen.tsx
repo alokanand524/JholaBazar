@@ -259,7 +259,7 @@ export default function HomeScreen() {
         // Clear the refresh param
         navigation.setParams({ refresh: undefined });
       } else {
-        // Silent refresh without showing loading states
+        // Always refresh cart to sync product card states
         fetchCart();
         fetchProducts();
         fetchFeaturedProducts();
@@ -269,16 +269,16 @@ export default function HomeScreen() {
     }, [fetchCart, navigation, onRefresh])
   );
 
-  // Auto-refresh cart every 1 second
+  // Auto-refresh cart every 300ms to sync product states
   useEffect(() => {
     const interval = setInterval(() => {
       if (isLoggedIn) {
         fetchCart();
       }
-    }, 1000);
+    }, 300);
 
     return () => clearInterval(interval);
-  }, [isLoggedIn]);
+  }, [isLoggedIn, fetchCart]);
 
   // Debug loading stages
   useEffect(() => {
