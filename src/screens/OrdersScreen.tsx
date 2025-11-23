@@ -7,6 +7,7 @@ import {
   FlatList,
   ActivityIndicator,
   Image,
+  Animated,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
@@ -150,10 +151,7 @@ export default function OrdersScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.gray }]}>Loading orders...</Text>
-        </View>
+        <OrdersListSkeleton colors={colors} />
       ) : orders.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Icon name="shopping-bag" size={80} color={colors.gray} />
@@ -325,5 +323,80 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-
 });
+
+// Skeleton Components
+const SkeletonBox = ({ width, height, style, colors }: any) => {
+  const [pulseAnim] = useState(new Animated.Value(0));
+  
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, []);
+  
+  return (
+    <Animated.View
+      style={[
+        {
+          width,
+          height,
+          backgroundColor: colors.border,
+          borderRadius: 4,
+          opacity: pulseAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0.3, 0.7],
+          }),
+        },
+        style,
+      ]}
+    />
+  );
+};
+
+const OrderCardSkeleton = ({ colors }: any) => (
+  <View style={[styles.orderCard, { backgroundColor: colors.card }]}>
+    {/* Order Header */}
+    <View style={styles.orderHeader}>
+      <View>
+        <SkeletonBox width={100} height={20} style={{ marginBottom: 8 }} colors={colors} />
+        <SkeletonBox width={80} height={14} colors={colors} />
+      </View>
+      <SkeletonBox width={80} height={28} style={{ borderRadius: 16 }} colors={colors} />
+    </View>
+
+    {/* Product Images */}
+    <View style={styles.orderItems}>
+      {[1, 2, 3, 4].map((item) => (
+        <SkeletonBox key={item} width={60} height={60} style={{ borderRadius: 12 }} colors={colors} />
+      ))}
+    </View>
+    
+    {/* Order Footer */}
+    <View style={styles.orderFooter}>
+      <SkeletonBox width={150} height={18} colors={colors} />
+      <SkeletonBox width={20} height={20} colors={colors} />
+    </View>
+  </View>
+);
+
+const OrdersListSkeleton = ({ colors }: any) => (
+  <View style={styles.listContainer}>
+    {[1, 2, 3, 4, 5].map((item) => (
+      <OrderCardSkeleton key={item} colors={colors} />
+    ))}
+  </View>
+);

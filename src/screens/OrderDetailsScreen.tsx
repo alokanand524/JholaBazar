@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Image,
   BackHandler,
+  Animated,
 } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -110,14 +111,21 @@ export default function OrderDetailsScreen() {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+          <TouchableOpacity onPress={() => {
+            if (fromOrderPlacement) {
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'MainTabs', params: { refresh: true } }],
+              });
+            } else {
+              navigation.goBack();
+            }
+          }}>
             <Icon name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: colors.text }]}>Order Details</Text>
         </View>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <OrderDetailsSkeleton colors={colors} />
       </View>
     );
   }
@@ -525,3 +533,131 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
+
+// Skeleton Components
+const SkeletonBox = ({ width, height, style, colors }: any) => {
+  const [pulseAnim] = useState(new Animated.Value(0));
+  
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, []);
+  
+  return (
+    <Animated.View
+      style={[
+        {
+          width,
+          height,
+          backgroundColor: colors.border,
+          borderRadius: 4,
+          opacity: pulseAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0.3, 0.7],
+          }),
+        },
+        style,
+      ]}
+    />
+  );
+};
+
+const OrderDetailsSkeleton = ({ colors }: any) => (
+  <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+    {/* Order Info Skeleton */}
+    <View style={[styles.section, { backgroundColor: colors.card }]}>
+      <View style={styles.orderInfoRow}>
+        <View style={styles.orderDetails}>
+          <SkeletonBox width={120} height={20} style={{ marginBottom: 8 }} colors={colors} />
+          <SkeletonBox width={80} height={16} colors={colors} />
+        </View>
+        <SkeletonBox width={80} height={28} style={{ borderRadius: 16 }} colors={colors} />
+      </View>
+      
+      <View style={styles.addressSection}>
+        <SkeletonBox width={100} height={14} style={{ marginBottom: 8 }} colors={colors} />
+        <SkeletonBox width={200} height={16} style={{ marginBottom: 4 }} colors={colors} />
+        <SkeletonBox width={150} height={14} colors={colors} />
+      </View>
+    </View>
+
+    {/* Order Tracking Skeleton */}
+    <View style={[styles.section, { backgroundColor: colors.card }]}>
+      <SkeletonBox width={120} height={18} style={{ marginBottom: 16 }} colors={colors} />
+      
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalTracking}>
+        {[1, 2, 3, 4, 5].map((item) => (
+          <View key={item} style={styles.trackingStepHorizontal}>
+            <SkeletonBox width={32} height={32} style={{ borderRadius: 16, marginBottom: 8 }} colors={colors} />
+            <SkeletonBox width={60} height={14} style={{ marginBottom: 4 }} colors={colors} />
+            <SkeletonBox width={50} height={12} colors={colors} />
+          </View>
+        ))}
+      </ScrollView>
+    </View>
+
+    {/* Order Items Skeleton */}
+    <View style={[styles.section, { backgroundColor: colors.card }]}>
+      <SkeletonBox width={80} height={18} style={{ marginBottom: 16 }} colors={colors} />
+      {[1, 2, 3].map((item) => (
+        <View key={item} style={[styles.orderItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <SkeletonBox width={60} height={60} style={{ borderRadius: 8, marginRight: 12 }} colors={colors} />
+          
+          <View style={styles.productInfo}>
+            <SkeletonBox width={150} height={16} style={{ marginBottom: 6 }} colors={colors} />
+            <SkeletonBox width={100} height={14} style={{ marginBottom: 6 }} colors={colors} />
+            <SkeletonBox width={60} height={14} style={{ marginBottom: 6 }} colors={colors} />
+            <SkeletonBox width={80} height={16} colors={colors} />
+          </View>
+          
+          <View style={styles.itemTotalContainer}>
+            <SkeletonBox width={60} height={18} colors={colors} />
+          </View>
+        </View>
+      ))}
+    </View>
+
+    {/* Bill Details Skeleton */}
+    <View style={[styles.section, { backgroundColor: colors.card }]}>
+      <SkeletonBox width={100} height={18} style={{ marginBottom: 16 }} colors={colors} />
+      
+      {[1, 2, 3, 4].map((item) => (
+        <View key={item} style={styles.billRow}>
+          <SkeletonBox width={80} height={16} colors={colors} />
+          <SkeletonBox width={60} height={16} colors={colors} />
+        </View>
+      ))}
+    </View>
+
+    {/* Payment Info Skeleton */}
+    <View style={[styles.section, { backgroundColor: colors.card }]}>
+      <SkeletonBox width={140} height={18} style={{ marginBottom: 16 }} colors={colors} />
+      
+      {[1, 2].map((item) => (
+        <View key={item} style={styles.paymentRow}>
+          <SkeletonBox width={100} height={16} colors={colors} />
+          <SkeletonBox width={80} height={16} colors={colors} />
+        </View>
+      ))}
+    </View>
+
+    {/* Reorder Button Skeleton */}
+    <View style={styles.section}>
+      <SkeletonBox width="100%" height={50} style={{ borderRadius: 8 }} colors={colors} />
+    </View>
+  </ScrollView>
+);

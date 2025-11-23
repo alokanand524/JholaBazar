@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   FlatList,
   TextInput,
+  Animated,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -114,22 +115,26 @@ export default function FeaturedProductsScreen() {
         )}
       </View>
 
-      <FlatList
-        data={filteredProducts}
-        renderItem={({ item }) => <ProductCard product={item} />}
-        keyExtractor={(item) => item.id}
-        numColumns={2}
-        contentContainerStyle={styles.productsList}
-        columnWrapperStyle={styles.row}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={[styles.emptyText, { color: colors.gray }]}>
-              {loading ? 'Loading...' : 'No products found'}
-            </Text>
-          </View>
-        }
-      />
+      {loading ? (
+        <FeaturedProductsSkeleton colors={colors} />
+      ) : (
+        <FlatList
+          data={filteredProducts}
+          renderItem={({ item }) => <ProductCard product={item} />}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          contentContainerStyle={styles.productsList}
+          columnWrapperStyle={styles.row}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={[styles.emptyText, { color: colors.gray }]}>
+                No products found
+              </Text>
+            </View>
+          }
+        />
+      )}
     </View>
   );
 }
@@ -201,3 +206,74 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
+
+// Skeleton Components
+const SkeletonBox = ({ width, height, style, colors }: any) => {
+  const [pulseAnim] = useState(new Animated.Value(0));
+  
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, []);
+  
+  return (
+    <Animated.View
+      style={[
+        {
+          width,
+          height,
+          backgroundColor: colors.border,
+          borderRadius: 4,
+          opacity: pulseAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0.3, 0.7],
+          }),
+        },
+        style,
+      ]}
+    />
+  );
+};
+
+const ProductCardSkeleton = ({ colors }: any) => (
+  <View style={{ flex: 1, backgroundColor: colors.card, borderRadius: 12, padding: 12, marginHorizontal: 4, marginBottom: 16 }}>
+    <SkeletonBox width="100%" height={120} style={{ borderRadius: 8, marginBottom: 12 }} colors={colors} />
+    <SkeletonBox width="80%" height={14} style={{ marginBottom: 6 }} colors={colors} />
+    <SkeletonBox width="60%" height={12} style={{ marginBottom: 8 }} colors={colors} />
+    <SkeletonBox width="50%" height={16} colors={colors} />
+  </View>
+);
+
+const FeaturedProductsSkeleton = ({ colors }: any) => (
+  <View style={{ flex: 1 }}>
+    {/* Search Bar Skeleton */}
+    <View style={[styles.searchContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <SkeletonBox width={20} height={20} colors={colors} />
+      <SkeletonBox width="70%" height={16} colors={colors} />
+    </View>
+    
+    {/* Products Grid Skeleton */}
+    <View style={styles.productsList}>
+      {[1, 2, 3].map((item) => (
+        <View key={item} style={styles.row}>
+          <ProductCardSkeleton colors={colors} />
+          <ProductCardSkeleton colors={colors} />
+        </View>
+      ))}
+    </View>
+  </View>
+);

@@ -81,20 +81,7 @@ function AppContent() {
     
     loadTheme();
     
-    // Initialize Firebase notifications
-    notificationService.initialize();
-    
-    // Debug: Log FCM token
-    setTimeout(async () => {
-      try {
-        const messaging = require('@react-native-firebase/messaging').default;
-        const token = await messaging().getToken();
-        console.log('🔥 DEBUG FCM TOKEN:', token);
-        console.log('🔥 TOKEN LENGTH:', token?.length);
-      } catch (error) {
-        console.log('🔥 DEBUG FCM ERROR:', error);
-      }
-    }, 3000);
+    // FCM will be initialized only after OTP verification
 
   }, [dispatch]);
 

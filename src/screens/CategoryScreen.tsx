@@ -9,6 +9,7 @@ import {
   FlatList,
   ActivityIndicator,
   Image,
+  Animated,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -155,10 +156,7 @@ export default function CategoryScreen() {
             {categoryName || 'Products'}
           </Text>
         </View>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.text }]}>Loading...</Text>
-        </View>
+        <CategoryScreenSkeleton colors={colors} />
       </View>
     );
   }
@@ -441,3 +439,108 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+
+// Skeleton Components
+const SkeletonBox = ({ width, height, style, colors }: any) => {
+  const [pulseAnim] = useState(new Animated.Value(0));
+  
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, []);
+  
+  return (
+    <Animated.View
+      style={[
+        {
+          width,
+          height,
+          backgroundColor: colors.border,
+          borderRadius: 4,
+          opacity: pulseAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0.3, 0.7],
+          }),
+        },
+        style,
+      ]}
+    />
+  );
+};
+
+const SubcategorySkeleton = ({ colors }: any) => (
+  <View style={[styles.subcategoryItem, { backgroundColor: 'transparent', borderColor: colors.border }]}>
+    <SkeletonBox width={36} height={36} style={{ borderRadius: 18, marginBottom: 6 }} colors={colors} />
+    <SkeletonBox width={50} height={12} colors={colors} />
+  </View>
+);
+
+const ProductCardSkeleton = ({ colors }: any) => (
+  <View style={[styles.featuredCard, { backgroundColor: colors.card, borderRadius: 12, padding: 12 }]}>
+    <SkeletonBox width="100%" height={120} style={{ borderRadius: 8, marginBottom: 12 }} colors={colors} />
+    <SkeletonBox width="80%" height={14} style={{ marginBottom: 6 }} colors={colors} />
+    <SkeletonBox width="60%" height={12} style={{ marginBottom: 8 }} colors={colors} />
+    <SkeletonBox width="50%" height={16} colors={colors} />
+  </View>
+);
+
+const CategoryScreenSkeleton = ({ colors }: any) => (
+  <View style={{ flex: 1 }}>
+    {/* Search Bar Skeleton */}
+    <View style={[styles.searchContainer, { backgroundColor: colors.card }]}>
+      <SkeletonBox width={32} height={32} style={{ borderRadius: 8 }} colors={colors} />
+      <SkeletonBox width="70%" height={16} colors={colors} />
+    </View>
+
+    <View style={styles.content}>
+      {/* Sidebar Skeleton */}
+      <View style={[styles.sidebar, { backgroundColor: colors.background }]}>
+        <View style={[styles.sidebarHeader, { backgroundColor: colors.border }]}>
+          <SkeletonBox width={60} height={12} colors={colors} />
+        </View>
+        {[1, 2, 3, 4, 5].map((item) => (
+          <SubcategorySkeleton key={item} colors={colors} />
+        ))}
+      </View>
+
+      {/* Products Container Skeleton */}
+      <View style={styles.productsContainer}>
+        {/* Products Header Skeleton */}
+        <View style={[styles.productsHeader, { backgroundColor: colors.card }]}>
+          <SkeletonBox width={80} height={16} colors={colors} />
+          <SkeletonBox width={32} height={32} style={{ borderRadius: 8 }} colors={colors} />
+        </View>
+        
+        {/* Products Grid Skeleton */}
+        <View style={styles.productsList}>
+          <View style={styles.productRow}>
+            <ProductCardSkeleton colors={colors} />
+            <ProductCardSkeleton colors={colors} />
+          </View>
+          <View style={styles.productRow}>
+            <ProductCardSkeleton colors={colors} />
+            <ProductCardSkeleton colors={colors} />
+          </View>
+          <View style={styles.productRow}>
+            <ProductCardSkeleton colors={colors} />
+            <ProductCardSkeleton colors={colors} />
+          </View>
+        </View>
+      </View>
+    </View>
+  </View>
+);

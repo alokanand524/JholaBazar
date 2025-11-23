@@ -7,6 +7,7 @@ import {
   FlatList,
   RefreshControl,
   TextInput,
+  Animated,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -130,11 +131,7 @@ export default function PopularProductsScreen() {
       </View>
 
       {loading && !refreshing ? (
-        <View style={styles.centerContainer}>
-          <Text style={[styles.loadingText, { color: colors.gray }]}>
-            Loading popular products...
-          </Text>
-        </View>
+        <PopularProductsSkeleton colors={colors} />
       ) : products.length === 0 ? (
         <View style={styles.centerContainer}>
           <Icon name="trending-up" size={80} color={colors.gray} />
@@ -250,3 +247,74 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 });
+
+// Skeleton Components
+const SkeletonBox = ({ width, height, style, colors }: any) => {
+  const [pulseAnim] = useState(new Animated.Value(0));
+  
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, []);
+  
+  return (
+    <Animated.View
+      style={[
+        {
+          width,
+          height,
+          backgroundColor: colors.border,
+          borderRadius: 4,
+          opacity: pulseAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0.3, 0.7],
+          }),
+        },
+        style,
+      ]}
+    />
+  );
+};
+
+const ProductCardSkeleton = ({ colors }: any) => (
+  <View style={[styles.productItem, { backgroundColor: colors.card, borderRadius: 12, padding: 12, marginBottom: 16 }]}>
+    <SkeletonBox width="100%" height={120} style={{ borderRadius: 8, marginBottom: 12 }} colors={colors} />
+    <SkeletonBox width="80%" height={14} style={{ marginBottom: 6 }} colors={colors} />
+    <SkeletonBox width="60%" height={12} style={{ marginBottom: 8 }} colors={colors} />
+    <SkeletonBox width="50%" height={16} colors={colors} />
+  </View>
+);
+
+const PopularProductsSkeleton = ({ colors }: any) => (
+  <View style={{ flex: 1 }}>
+    {/* Search Bar Skeleton */}
+    <View style={[styles.searchContainer, { backgroundColor: colors.lightGray }]}>
+      <SkeletonBox width={20} height={20} colors={colors} />
+      <SkeletonBox width="70%" height={16} colors={colors} />
+    </View>
+    
+    {/* Products Grid Skeleton */}
+    <View style={styles.listContainer}>
+      {[1, 2, 3, 4, 5, 6].map((item, index) => (
+        <View key={item} style={[styles.row, { marginBottom: 8 }]}>
+          <ProductCardSkeleton colors={colors} />
+          {index % 2 === 0 && <ProductCardSkeleton colors={colors} />}
+        </View>
+      ))}
+    </View>
+  </View>
+);

@@ -7,6 +7,7 @@ import {
   ScrollView,
   Image,
   Alert,
+  Animated,
 } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
@@ -148,30 +149,34 @@ export default function ProfileScreen() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* User Info */}
         {isLoggedIn ? (
-          <View style={[styles.userInfo, { backgroundColor: colors.lightGray }]}>
-            <View style={styles.avatar}>
-              <Icon name="person" size={40} color={colors.primary} />
-            </View>
-            <View style={styles.userDetails}>
-              <Text style={[styles.userName, { color: colors.text }]}>
-                {userProfile?.fullName || 'User'}
-              </Text>
-              <Text style={[styles.userPhone, { color: colors.gray }]}>
-                +91 {userProfile?.phone || 'XXXXXXXXXX'}
-              </Text>
-              {userProfile?.email && (
-                <Text style={[styles.userEmail, { color: colors.gray }]}>
-                  {userProfile.email}
+          loading ? (
+            <UserInfoSkeleton colors={colors} />
+          ) : (
+            <View style={[styles.userInfo, { backgroundColor: colors.lightGray }]}>
+              <View style={styles.avatar}>
+                <Icon name="person" size={40} color={colors.primary} />
+              </View>
+              <View style={styles.userDetails}>
+                <Text style={[styles.userName, { color: colors.text }]}>
+                  {userProfile?.fullName || 'User'}
                 </Text>
-              )}
+                <Text style={[styles.userPhone, { color: colors.gray }]}>
+                  +91 {userProfile?.phone || 'XXXXXXXXXX'}
+                </Text>
+                {userProfile?.email && (
+                  <Text style={[styles.userEmail, { color: colors.gray }]}>
+                    {userProfile.email}
+                  </Text>
+                )}
+              </View>
+              <TouchableOpacity 
+                style={styles.editButton}
+                onPress={() => navigation.navigate('EditProfile', { userProfile })}
+              >
+                <Icon name="edit" size={20} color={colors.primary} />
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity 
-              style={styles.editButton}
-              onPress={() => navigation.navigate('EditProfile', { userProfile })}
-            >
-              <Icon name="edit" size={20} color={colors.primary} />
-            </TouchableOpacity>
-          </View>
+          )
         ) : (
           <TouchableOpacity 
             style={[styles.loginPrompt, { backgroundColor: colors.lightGray }]} 
@@ -193,28 +198,40 @@ export default function ProfileScreen() {
         )}
 
         {/* Theme Selection */}
-        <View style={[styles.themeSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View style={[styles.themeSectionHeader, { borderBottomColor: colors.border }]}>
-            <Icon name="palette" size={20} color={colors.primary} />
-            <Text style={[styles.themeSectionTitle, { color: colors.text }]}>Appearance</Text>
+        {loading ? (
+          <ThemeSectionSkeleton colors={colors} />
+        ) : (
+          <View style={[styles.themeSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={[styles.themeSectionHeader, { borderBottomColor: colors.border }]}>
+              <Icon name="palette" size={20} color={colors.primary} />
+              <Text style={[styles.themeSectionTitle, { color: colors.text }]}>Appearance</Text>
+            </View>
+            <View style={styles.themeOptions}>
+              <Text style={[styles.themeLabel, { color: colors.gray }]}>Theme</Text>
+              <ThemeDropdown />
+            </View>
           </View>
-          <View style={styles.themeOptions}>
-            <Text style={[styles.themeLabel, { color: colors.gray }]}>Theme</Text>
-            <ThemeDropdown />
-          </View>
-        </View>
+        )}
 
         {/* Menu Items */}
-        <View style={[styles.menuSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          {menuItems.map(renderMenuItem)}
-        </View>
+        {loading ? (
+          <MenuSectionSkeleton colors={colors} />
+        ) : (
+          <View style={[styles.menuSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            {menuItems.map(renderMenuItem)}
+          </View>
+        )}
 
         {/* Logout Button */}
         {isLoggedIn && (
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <Icon name="logout" size={24} color="#FF3B30" />
-            <Text style={styles.logoutText}>Logout</Text>
-          </TouchableOpacity>
+          loading ? (
+            <LogoutButtonSkeleton colors={colors} />
+          ) : (
+            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+              <Icon name="logout" size={24} color="#FF3B30" />
+              <Text style={styles.logoutText}>Logout</Text>
+            </TouchableOpacity>
+          )
         )}
 
         {/* App Info */}
@@ -369,4 +386,100 @@ const styles = StyleSheet.create({
   appVersion: {
     fontSize: 12,
   },
+  // Skeleton Styles
+  skeleton: {
+    backgroundColor: '#E0E0E0',
+    borderRadius: 4,
+  },
+  skeletonPulse: {
+    opacity: 0.5,
+  },
 });
+
+// Skeleton Components
+const SkeletonBox = ({ width, height, style, colors }: any) => {
+  const [pulseAnim] = useState(new Animated.Value(0));
+  
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, []);
+  
+  return (
+    <Animated.View
+      style={[
+        {
+          width,
+          height,
+          backgroundColor: colors.border,
+          borderRadius: 4,
+          opacity: pulseAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0.3, 0.7],
+          }),
+        },
+        style,
+      ]}
+    />
+  );
+};
+
+const UserInfoSkeleton = ({ colors }: any) => (
+  <View style={[styles.userInfo, { backgroundColor: colors.lightGray }]}>
+    <SkeletonBox width={60} height={60} style={{ borderRadius: 30 }} colors={colors} />
+    <View style={styles.userDetails}>
+      <SkeletonBox width={120} height={20} style={{ marginBottom: 8 }} colors={colors} />
+      <SkeletonBox width={100} height={16} style={{ marginBottom: 4 }} colors={colors} />
+      <SkeletonBox width={140} height={14} colors={colors} />
+    </View>
+    <SkeletonBox width={24} height={24} colors={colors} />
+  </View>
+);
+
+const ThemeSectionSkeleton = ({ colors }: any) => (
+  <View style={[styles.themeSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+    <View style={[styles.themeSectionHeader, { borderBottomColor: colors.border }]}>
+      <SkeletonBox width={20} height={20} colors={colors} />
+      <SkeletonBox width={100} height={18} colors={colors} />
+    </View>
+    <View style={styles.themeOptions}>
+      <SkeletonBox width={60} height={16} colors={colors} />
+      <SkeletonBox width={80} height={32} colors={colors} />
+    </View>
+  </View>
+);
+
+const MenuSectionSkeleton = ({ colors }: any) => (
+  <View style={[styles.menuSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+    {[1, 2, 3, 4].map((item) => (
+      <View key={item} style={[styles.menuItem, { borderBottomColor: colors.border }]}>
+        <View style={styles.menuItemLeft}>
+          <SkeletonBox width={24} height={24} colors={colors} />
+          <SkeletonBox width={100} height={16} colors={colors} />
+        </View>
+        <SkeletonBox width={20} height={20} colors={colors} />
+      </View>
+    ))}
+  </View>
+);
+
+const LogoutButtonSkeleton = ({ colors }: any) => (
+  <View style={[styles.logoutButton, { borderColor: colors.border }]}>
+    <SkeletonBox width={24} height={24} colors={colors} />
+    <SkeletonBox width={60} height={16} colors={colors} />
+  </View>
+);

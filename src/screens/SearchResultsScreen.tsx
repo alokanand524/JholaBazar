@@ -15,6 +15,7 @@ import { useTheme } from '../hooks/useTheme';
 import { useCart } from '../hooks/useCart';
 import { ProductCard } from '../components/ProductCard';
 import { RootState } from '../store/store';
+import { responsive } from '../utils/responsive';
 
 export default function SearchResultsScreen() {
   const navigation = useNavigation<any>();
@@ -71,9 +72,7 @@ export default function SearchResultsScreen() {
   };
 
   const renderProduct = ({ item }: { item: any }) => (
-    <View style={styles.productItem}>
-      <ProductCard product={item} />
-    </View>
+    <ProductCard product={item} />
   );
 
   return (
@@ -146,8 +145,8 @@ export default function SearchResultsScreen() {
           data={searchResults}
           renderItem={renderProduct}
           keyExtractor={(item) => item.id?.toString()}
-          numColumns={2}
-          columnWrapperStyle={styles.row}
+          numColumns={responsive.getProductColumns()}
+          columnWrapperStyle={responsive.getProductColumns() > 2 ? styles.rowTablet : styles.row}
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
         />
@@ -225,11 +224,10 @@ const styles = StyleSheet.create({
   listContainer: {
     padding: 16,
   },
-  productItem: {
-    flex: 1,
-    marginHorizontal: 4,
-  },
   row: {
     justifyContent: 'space-between',
+  },
+  rowTablet: {
+    justifyContent: 'space-around',
   },
 });

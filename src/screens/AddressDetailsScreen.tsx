@@ -134,7 +134,7 @@ export default function AddressDetailsScreen() {
         setTimeout(() => {
           navigation.reset({
             index: 0,
-            routes: [{ name: 'MainTabs' }],
+            routes: [{ name: 'MainTabs', params: { screen: 'Home' } }],
           });
         }, 1500);
       } else {

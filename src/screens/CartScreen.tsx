@@ -8,6 +8,7 @@ import {
   Image,
   FlatList,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSelector, useDispatch } from 'react-redux';
@@ -175,9 +176,7 @@ export default function CartScreen() {
             My Jhola
           </Text>
         </View>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <CartScreenSkeleton colors={colors} />
       </View>
     );
   }
@@ -606,3 +605,116 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
+
+// Skeleton Components
+const SkeletonBox = ({ width, height, style, colors }: any) => {
+  const [pulseAnim] = useState(new Animated.Value(0));
+  
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, []);
+  
+  return (
+    <Animated.View
+      style={[
+        {
+          width,
+          height,
+          backgroundColor: colors.border,
+          borderRadius: 4,
+          opacity: pulseAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0.3, 0.7],
+          }),
+        },
+        style,
+      ]}
+    />
+  );
+};
+
+const CartItemSkeleton = ({ colors }: any) => (
+  <View style={[styles.cartItem, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+    <SkeletonBox width={60} height={60} style={{ borderRadius: 8 }} colors={colors} />
+    
+    <View style={styles.itemDetails}>
+      <SkeletonBox width="80%" height={16} style={{ marginBottom: 6 }} colors={colors} />
+      <SkeletonBox width="60%" height={14} style={{ marginBottom: 6 }} colors={colors} />
+      <SkeletonBox width="40%" height={16} colors={colors} />
+    </View>
+
+    <View style={styles.quantityControls}>
+      <SkeletonBox width={32} height={32} style={{ borderRadius: 6 }} colors={colors} />
+      <SkeletonBox width={20} height={16} colors={colors} />
+      <SkeletonBox width={32} height={32} style={{ borderRadius: 6 }} colors={colors} />
+    </View>
+  </View>
+);
+
+const CartScreenSkeleton = ({ colors }: any) => (
+  <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+    {/* Delivery Info Skeleton */}
+    <View style={[styles.deliveryInfo, { backgroundColor: colors.card }]}>
+      <SkeletonBox width={20} height={20} colors={colors} />
+      <SkeletonBox width={150} height={16} colors={colors} />
+    </View>
+
+    {/* Cart Items Skeleton */}
+    {[1, 2, 3, 4].map((item) => (
+      <CartItemSkeleton key={item} colors={colors} />
+    ))}
+
+    {/* Add More Button Skeleton */}
+    <View style={[styles.addMoreButton, { borderColor: colors.border }]}>
+      <SkeletonBox width={20} height={20} colors={colors} />
+      <SkeletonBox width={100} height={16} colors={colors} />
+    </View>
+
+    {/* Threshold Card Skeleton */}
+    <View style={[styles.thresholdCard, { backgroundColor: colors.card }]}>
+      <View style={styles.currentLevelCreative}>
+        <SkeletonBox width={100} height={28} style={{ borderRadius: 20 }} colors={colors} />
+        <SkeletonBox width={80} height={16} colors={colors} />
+      </View>
+      
+      <View style={styles.nextLevelCreative}>
+        <View style={styles.progressContainer}>
+          <SkeletonBox width="100%" height={8} style={{ borderRadius: 4 }} colors={colors} />
+          <SkeletonBox width={35} height={14} colors={colors} />
+        </View>
+        <View style={styles.nextLevelInfo}>
+          <SkeletonBox width={120} height={16} colors={colors} />
+          <SkeletonBox width={80} height={16} colors={colors} />
+        </View>
+      </View>
+    </View>
+
+    {/* Checkout Section Skeleton */}
+    <View style={[styles.checkoutContainer, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
+      <View style={styles.totalSection}>
+        <View style={styles.priceRow}>
+          <SkeletonBox width={60} height={16} colors={colors} />
+          <SkeletonBox width={80} height={20} colors={colors} />
+        </View>
+        <SkeletonBox width={100} height={14} style={{ marginTop: 4 }} colors={colors} />
+      </View>
+      
+      <SkeletonBox width={150} height={40} style={{ borderRadius: 8 }} colors={colors} />
+    </View>
+  </ScrollView>
+);

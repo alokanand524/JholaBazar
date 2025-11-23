@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { Toast } from '../components/Toast';
 import { setUser } from '../store/slices/userSlice';
+import fcmService from '../services/fcmService';
 
 export default function LoginScreen() {
   const navigation = useNavigation();
@@ -122,6 +123,15 @@ export default function LoginScreen() {
         await AsyncStorage.setItem('userProfile', JSON.stringify(userData));
         
         dispatch(setUser(userData));
+        
+        // Initialize FCM and send token to backend after successful login
+        try {
+          await fcmService.initialize();
+          await fcmService.sendExistingTokenToBackend();
+          console.log('FCM initialized and token sent after OTP verification');
+        } catch (error) {
+          console.error('FCM initialization error after login:', error);
+        }
         
         showToast('Login successful', 'success');
         navigation.navigate('MainTabs');

@@ -29,7 +29,10 @@ class LogoutManager {
         'pushToken',
         'lastLoginTime',
         'userLocation',
-        'searchHistory'
+        'searchHistory',
+        'persist:address',
+        'persist:user',
+        'persist:cart'
       ];
 
       await AsyncStorage.multiRemove(keysToRemove);

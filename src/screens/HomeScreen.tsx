@@ -50,18 +50,24 @@ export default function HomeScreen() {
   const [currentLocationName, setCurrentLocationName] = useState('Current Location');
   const [defaultAddress, setDefaultAddress] = useState<any>(null);
 
-  // Check delivery service when component mounts or address changes
+  // Check delivery service when component mounts, address changes, or login status changes
   useEffect(() => {
-    console.log('🏠 Address changed, checking delivery service:', selectedAddress?.fullAddress);
+    console.log('🏠 Address or login status changed, checking delivery service:', selectedAddress?.fullAddress, 'defaultAddress:', defaultAddress?.fullAddress, 'isLoggedIn:', isLoggedIn);
     checkDeliveryService();
-  }, [selectedAddress]);
+  }, [selectedAddress, defaultAddress, isLoggedIn]);
 
-  // Fetch default address when user is logged in
+  // Fetch default address when user is logged in, clear addresses when logged out
   useEffect(() => {
     if (isLoggedIn) {
       fetchDefaultAddress();
+    } else {
+      // Clear address state when user logs out
+      dispatch(clearAddresses());
+      setDefaultAddress(null);
+      setDeliveryMessage('');
+      setDeliveryStatus(null);
     }
-  }, [isLoggedIn]);
+  }, [isLoggedIn, dispatch]);
 
   const fetchDefaultAddress = async () => {
     try {
@@ -89,13 +95,19 @@ export default function HomeScreen() {
     
     if (selectedAddress?.latitude && selectedAddress?.longitude) {
       // Use selected address coordinates
-      lat = selectedAddress.latitude;
-      lng = selectedAddress.longitude;
+      lat = parseFloat(selectedAddress.latitude);
+      lng = parseFloat(selectedAddress.longitude);
       locationName = selectedAddress.fullAddress || 'Selected Address';
       console.log('📍 Using selected address:', { lat, lng, locationName });
-    } else {
-      // Use current location as fallback
-      console.log('📍 No selected address, using current location');
+    } else if (defaultAddress?.latitude && defaultAddress?.longitude) {
+      // Use default address coordinates
+      lat = parseFloat(defaultAddress.latitude);
+      lng = parseFloat(defaultAddress.longitude);
+      locationName = defaultAddress.fullAddress || 'Default Address';
+      console.log('📍 Using default address:', { lat, lng, locationName });
+    } else if (isLoggedIn) {
+      // Use current location only if user is logged in (OTP verified)
+      console.log('📍 User logged in, using current location');
       const location = await locationService.getCurrentLocation();
       if (!location) {
         console.log('❌ Location unavailable');
@@ -107,6 +119,13 @@ export default function HomeScreen() {
       lng = location.longitude;
       locationName = await locationService.getLocationName(lat, lng);
       console.log('📍 Current location:', { lat, lng, locationName });
+    } else {
+      // User not logged in - don't check delivery service
+      console.log('📍 User not logged in, skipping delivery check');
+      setDeliveryMessage('');
+      setDeliveryStatus(null);
+      setCurrentLocationName('Select delivery location');
+      return;
     }
     
     setCurrentLocationName(locationName);
@@ -259,23 +278,19 @@ export default function HomeScreen() {
         // Clear the refresh param
         navigation.setParams({ refresh: undefined });
       } else {
-        // Always refresh cart to sync product card states
+        // Only refresh cart on focus, other data refreshes via interval
         fetchCart();
-        fetchProducts();
-        fetchFeaturedProducts();
-        fetchCategories();
-        checkDeliveryService();
       }
     }, [fetchCart, navigation, onRefresh])
   );
 
-  // Auto-refresh cart every 300ms to sync product states
+  // Auto-refresh cart every 5 seconds to sync product states
   useEffect(() => {
     const interval = setInterval(() => {
       if (isLoggedIn) {
         fetchCart();
       }
-    }, 300);
+    }, 5000); // Changed from 300ms to 5000ms
 
     return () => clearInterval(interval);
   }, [isLoggedIn, fetchCart]);
@@ -309,7 +324,21 @@ export default function HomeScreen() {
             >
               <Text style={[styles.addressText, { color: colors.text }]} numberOfLines={1}>
                 {(() => {
-                  const addressToShow = selectedAddress?.fullAddress || defaultAddress?.fullAddress || currentLocationName;
+                  // Priority: Selected Address > Default Address > Current Location (only if logged in) > Generic text
+                  let addressToShow;
+                  
+                  if (selectedAddress?.fullAddress) {
+                    addressToShow = selectedAddress.fullAddress;
+                  } else if (defaultAddress?.fullAddress) {
+                    addressToShow = defaultAddress.fullAddress;
+                  } else if (isLoggedIn) {
+                    // Show current location only if user is logged in (OTP verified)
+                    addressToShow = currentLocationName;
+                  } else {
+                    // Not logged in - show generic text
+                    addressToShow = 'Select delivery location';
+                  }
+                  
                   return addressToShow.length > 30 
                     ? `${addressToShow.substring(0, 30)}...` 
                     : addressToShow;

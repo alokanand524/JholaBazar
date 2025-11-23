@@ -97,10 +97,26 @@ class FCMService {
       // Save locally
       await AsyncStorage.setItem(FCM_TOKEN_KEY, token);
       
-      // Send to backend
+      // Send to backend (will check if user is logged in)
       await this.sendTokenToBackend(token);
     } catch (error) {
       console.error('Error saving FCM token:', error);
+    }
+  }
+
+  // Method to send existing token to backend after login
+  async sendExistingTokenToBackend() {
+    try {
+      const token = await AsyncStorage.getItem(FCM_TOKEN_KEY);
+      if (token) {
+        console.log('Sending existing FCM token to backend after login');
+        await this.sendTokenToBackend(token);
+      } else {
+        console.log('No existing FCM token found, getting new one');
+        await this.getFCMToken();
+      }
+    } catch (error) {
+      console.error('Error sending existing FCM token:', error);
     }
   }
 

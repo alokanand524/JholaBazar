@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   FlatList,
   Alert,
+  Animated,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSelector, useDispatch } from 'react-redux';
@@ -231,11 +232,7 @@ export default function AddressesScreen() {
 
 
       {loading ? (
-        <View style={styles.centerContainer}>
-          <Text style={[styles.loadingText, { color: colors.gray }]}>
-            Loading addresses...
-          </Text>
-        </View>
+        <AddressesListSkeleton colors={colors} />
       ) : addresses.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Icon name="location-off" size={80} color={colors.gray} />
@@ -458,3 +455,85 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 });
+
+// Skeleton Components
+const SkeletonBox = ({ width, height, style, colors }: any) => {
+  const [pulseAnim] = useState(new Animated.Value(0));
+  
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, []);
+  
+  return (
+    <Animated.View
+      style={[
+        {
+          width,
+          height,
+          backgroundColor: colors.border,
+          borderRadius: 4,
+          opacity: pulseAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0.3, 0.7],
+          }),
+        },
+        style,
+      ]}
+    />
+  );
+};
+
+const AddressCardSkeleton = ({ colors }: any) => (
+  <View style={[styles.addressCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+    <View style={styles.addressHeader}>
+      <View style={styles.addressTypeContainer}>
+        <SkeletonBox width={20} height={20} colors={colors} />
+        <SkeletonBox width={60} height={16} colors={colors} />
+      </View>
+      <View style={styles.addressActions}>
+        <SkeletonBox width={18} height={18} colors={colors} />
+      </View>
+    </View>
+    
+    <SkeletonBox width="90%" height={18} style={{ marginBottom: 8 }} colors={colors} />
+    <SkeletonBox width="70%" height={14} style={{ marginBottom: 8 }} colors={colors} />
+    <SkeletonBox width="80%" height={14} style={{ marginBottom: 12 }} colors={colors} />
+    
+    <View style={styles.bottomActions}>
+      <SkeletonBox width={100} height={28} style={{ borderRadius: 16 }} colors={colors} />
+      <SkeletonBox width={120} height={14} colors={colors} />
+    </View>
+  </View>
+);
+
+const AddressesListSkeleton = ({ colors }: any) => (
+  <View>
+    {/* Map Button Skeleton */}
+    <View style={[styles.mapButton, { backgroundColor: colors.border }]}>
+      <SkeletonBox width={20} height={20} colors={colors} />
+      <SkeletonBox width={150} height={16} colors={colors} />
+    </View>
+    
+    {/* Address Cards Skeleton */}
+    <View style={styles.listContainer}>
+      {[1, 2, 3].map((item) => (
+        <AddressCardSkeleton key={item} colors={colors} />
+      ))}
+    </View>
+  </View>
+);
