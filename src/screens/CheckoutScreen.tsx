@@ -35,14 +35,32 @@ export default function CheckoutScreen() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showPaymentDropdown, setShowPaymentDropdown] = useState(false);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' as 'success' | 'error' });
+  const [defaultAddress, setDefaultAddress] = useState<any>(null);
 
   useEffect(() => {
     if (isLoggedIn) {
       fetchCartData();
+      fetchDefaultAddress();
     } else {
       setLoading(false);
     }
   }, [isLoggedIn]);
+
+  const fetchDefaultAddress = async () => {
+    try {
+      const response = await tokenManager.makeAuthenticatedRequest('https://api.jholabazar.com/api/v1/service-area/addresses');
+      const data = await response.json();
+      
+      if (data.success && data.data) {
+        const defaultAddr = data.data.find((addr: any) => addr.isDefault);
+        if (defaultAddr) {
+          setDefaultAddress(defaultAddr);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching default address:', error);
+    }
+  };
 
   const fetchCartData = async () => {
     try {
@@ -69,7 +87,8 @@ export default function CheckoutScreen() {
   };
 
   const handlePlaceOrder = async () => {
-    if (!selectedAddress) {
+    const addressToUse = selectedAddress || defaultAddress;
+    if (!addressToUse) {
       setToast({ visible: true, message: 'Please select a delivery address', type: 'error' });
       return;
     }
@@ -80,7 +99,7 @@ export default function CheckoutScreen() {
     try {
       const orderPayload = {
         storeId: '0d29835f-3840-4d72-a26d-ed96ca744a34',
-        deliveryAddressId: selectedAddress.id,
+        deliveryAddressId: addressToUse.id,
         paymentMethod: paymentMethod === 'cod' ? 'CASH_ON_DELIVERY' : 'ONLINE_PAYMENT'
       };
 
@@ -269,21 +288,28 @@ export default function CheckoutScreen() {
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Delivery Address</Text>
           </View>
           
-          {selectedAddress ? (
+          {selectedAddress || defaultAddress ? (
             <TouchableOpacity 
               style={[styles.addressCard, { borderColor: colors.border }]}
               onPress={() => navigation.navigate('Addresses')}
             >
               <View style={styles.addressContent}>
-                <Text style={[styles.addressType, { color: colors.primary }]}>
-                  {selectedAddress.type || 'Home'}
-                </Text>
+                <View style={styles.addressTypeContainer}>
+                  <Text style={[styles.addressType, { color: colors.primary }]}>
+                    {(selectedAddress || defaultAddress).type || 'Home'}
+                  </Text>
+                  {(selectedAddress || defaultAddress).isDefault && (
+                    <View style={[styles.defaultBadge, { backgroundColor: colors.primary }]}>
+                      <Text style={styles.defaultText}>Default</Text>
+                    </View>
+                  )}
+                </View>
                 <Text style={[styles.addressText, { color: colors.text }]} numberOfLines={2}>
-                  {selectedAddress.fullAddress || 'Current Location'}
+                  {(selectedAddress || defaultAddress).fullAddress || 'Current Location'}
                 </Text>
-                {selectedAddress.pincode && (
+                {(selectedAddress || defaultAddress).pincode && (
                   <Text style={[styles.addressSubtext, { color: colors.gray }]}>
-                    {selectedAddress.pincode.city}, {selectedAddress.pincode.state}
+                    {(selectedAddress || defaultAddress).pincode.city}, {(selectedAddress || defaultAddress).pincode.state}
                   </Text>
                 )}
               </View>
@@ -535,6 +561,22 @@ const styles = StyleSheet.create({
   },
   addressContent: {
     flex: 1,
+  },
+  addressTypeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  defaultBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  defaultText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '600',
   },
   addressType: {
     fontSize: 14,

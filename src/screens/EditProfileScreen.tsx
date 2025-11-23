@@ -7,12 +7,12 @@ import {
   TextInput,
   ScrollView,
   Alert,
-  Modal,
-  FlatList,
+  Platform,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useDispatch } from 'react-redux';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { useTheme } from '../hooks/useTheme';
 import { AppDispatch } from '../store/store';
@@ -33,47 +33,32 @@ export default function EditProfileScreen() {
     gender: '',
     dateOfBirth: '',
   });
-  const [dateComponents, setDateComponents] = useState({
-    year: '',
-    month: '',
-    day: '',
-  });
   const [loading, setLoading] = useState(false);
-  const [showDayPicker, setShowDayPicker] = useState(false);
-  const [showMonthPicker, setShowMonthPicker] = useState(false);
-  const [showYearPicker, setShowYearPicker] = useState(false);
-  
-  const years = Array.from({ length: 80 }, (_, i) => (new Date().getFullYear() - i).toString());
-  const months = [
-    { value: '01', label: 'January' },
-    { value: '02', label: 'February' },
-    { value: '03', label: 'March' },
-    { value: '04', label: 'April' },
-    { value: '05', label: 'May' },
-    { value: '06', label: 'June' },
-    { value: '07', label: 'July' },
-    { value: '08', label: 'August' },
-    { value: '09', label: 'September' },
-    { value: '10', label: 'October' },
-    { value: '11', label: 'November' },
-    { value: '12', label: 'December' },
-  ];
-  const days = Array.from({ length: 31 }, (_, i) => (i + 1).toString().padStart(2, '0'));
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date());
 
-  const updateDateOfBirth = (component: string, value: string) => {
-    const newComponents = { ...dateComponents, [component]: value };
-    setDateComponents(newComponents);
-    
-    if (newComponents.year && newComponents.month && newComponents.day) {
-      const dateString = `${newComponents.year}-${newComponents.month}-${newComponents.day}`;
+  const handleDateChange = (event: any, date?: Date) => {
+    setShowDatePicker(Platform.OS === 'ios');
+    if (date) {
+      setSelectedDate(date);
+      const dateString = date.toISOString().split('T')[0];
       setFormData({ ...formData, dateOfBirth: dateString });
     }
+  };
+
+  const formatDisplayDate = (dateString: string) => {
+    if (!dateString) return 'Select Date of Birth';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric'
+    });
   };
 
   useEffect(() => {
     if (route.params?.userProfile) {
       const profile = route.params.userProfile;
-      const dobParts = profile.dateOfBirth ? profile.dateOfBirth.split('T')[0].split('-') : ['', '', ''];
       
       setFormData({
         firstName: profile.firstName || '',
@@ -84,11 +69,9 @@ export default function EditProfileScreen() {
         dateOfBirth: profile.dateOfBirth ? profile.dateOfBirth.split('T')[0] : '',
       });
       
-      setDateComponents({
-        year: dobParts[0] || '',
-        month: dobParts[1] || '',
-        day: dobParts[2] || '',
-      });
+      if (profile.dateOfBirth) {
+        setSelectedDate(new Date(profile.dateOfBirth));
+      }
     }
   }, [route.params]);
 
@@ -163,7 +146,6 @@ export default function EditProfileScreen() {
       <ScrollView 
         style={styles.content} 
         showsVerticalScrollIndicator={false}
-        scrollEnabled={!showDayPicker && !showMonthPicker && !showYearPicker}
       >
         <View style={styles.formContainer}>
           <View style={styles.inputGroup}>
@@ -260,130 +242,26 @@ export default function EditProfileScreen() {
             <Text style={[styles.label, { color: colors.text }]}>
               Date of Birth
             </Text>
-            <View style={styles.dateContainer}>
-              <View style={[styles.dateDropdown, { zIndex: showDayPicker ? 9999 : 1 }]}>
-                <Text style={[styles.dropdownLabel, { color: colors.gray }]}>Day</Text>
-                <View style={[styles.dropdown, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <TouchableOpacity
-                    style={styles.dropdownButton}
-                    onPress={() => {
-                      setShowDayPicker(!showDayPicker);
-                      setShowMonthPicker(false);
-                      setShowYearPicker(false);
-                    }}
-                  >
-                    <Text style={[styles.dropdownText, { color: colors.text }]}>
-                      {dateComponents.day || 'DD'}
-                    </Text>
-                    <Icon name="keyboard-arrow-down" size={20} color={colors.gray} />
-                  </TouchableOpacity>
-                </View>
-                {showDayPicker && (
-                  <View style={[styles.dropdownList, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                    <FlatList 
-                      data={days}
-                      keyExtractor={(item) => item}
-                      renderItem={({ item }) => (
-                        <TouchableOpacity
-                          style={[styles.dropdownItem, { borderBottomColor: colors.border }]}
-                          onPress={() => {
-                            updateDateOfBirth('day', item);
-                            setShowDayPicker(false);
-                          }}
-                        >
-                          <Text style={[styles.dropdownItemText, { color: colors.text }]}>{item}</Text>
-                        </TouchableOpacity>
-                      )}
-                      scrollEnabled={true}
-                      nestedScrollEnabled={true}
-                      showsVerticalScrollIndicator={true}
-                    />
-                  </View>
-                )}
-              </View>
-              
-              <View style={[styles.dateDropdown, { zIndex: showMonthPicker ? 9998 : 1 }]}>
-                <Text style={[styles.dropdownLabel, { color: colors.gray }]}>Month</Text>
-                <View style={[styles.dropdown, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <TouchableOpacity
-                    style={styles.dropdownButton}
-                    onPress={() => {
-                      setShowMonthPicker(!showMonthPicker);
-                      setShowDayPicker(false);
-                      setShowYearPicker(false);
-                    }}
-                  >
-                    <Text style={[styles.dropdownText, { color: colors.text }]}>
-                      {months.find(m => m.value === dateComponents.month)?.label || 'Month'}
-                    </Text>
-                    <Icon name="keyboard-arrow-down" size={20} color={colors.gray} />
-                  </TouchableOpacity>
-                </View>
-                {showMonthPicker && (
-                  <View style={[styles.dropdownList, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                    <FlatList 
-                      data={months}
-                      keyExtractor={(item) => item.value}
-                      renderItem={({ item }) => (
-                        <TouchableOpacity
-                          style={[styles.dropdownItem, { borderBottomColor: colors.border }]}
-                          onPress={() => {
-                            updateDateOfBirth('month', item.value);
-                            setShowMonthPicker(false);
-                          }}
-                        >
-                          <Text style={[styles.dropdownItemText, { color: colors.text }]}>{item.label}</Text>
-                        </TouchableOpacity>
-                      )}
-                      scrollEnabled={true}
-                      nestedScrollEnabled={true}
-                      showsVerticalScrollIndicator={true}
-                    />
-                  </View>
-                )}
-              </View>
-              
-              <View style={[styles.dateDropdown, { zIndex: showYearPicker ? 9997 : 1 }]}>
-                <Text style={[styles.dropdownLabel, { color: colors.gray }]}>Year</Text>
-                <View style={[styles.dropdown, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <TouchableOpacity
-                    style={styles.dropdownButton}
-                    onPress={() => {
-                      setShowYearPicker(!showYearPicker);
-                      setShowDayPicker(false);
-                      setShowMonthPicker(false);
-                    }}
-                  >
-                    <Text style={[styles.dropdownText, { color: colors.text }]}>
-                      {dateComponents.year || 'YYYY'}
-                    </Text>
-                    <Icon name="keyboard-arrow-down" size={20} color={colors.gray} />
-                  </TouchableOpacity>
-                </View>
-                {showYearPicker && (
-                  <View style={[styles.dropdownList, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                    <FlatList 
-                      data={years}
-                      keyExtractor={(item) => item}
-                      renderItem={({ item }) => (
-                        <TouchableOpacity
-                          style={[styles.dropdownItem, { borderBottomColor: colors.border }]}
-                          onPress={() => {
-                            updateDateOfBirth('year', item);
-                            setShowYearPicker(false);
-                          }}
-                        >
-                          <Text style={[styles.dropdownItemText, { color: colors.text }]}>{item}</Text>
-                        </TouchableOpacity>
-                      )}
-                      scrollEnabled={true}
-                      nestedScrollEnabled={true}
-                      showsVerticalScrollIndicator={true}
-                    />
-                  </View>
-                )}
-              </View>
-            </View>
+            <TouchableOpacity
+              style={[styles.datePickerButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <Text style={[styles.datePickerText, { color: formData.dateOfBirth ? colors.text : colors.gray }]}>
+                {formatDisplayDate(formData.dateOfBirth)}
+              </Text>
+              <Icon name="calendar-today" size={20} color={colors.gray} />
+            </TouchableOpacity>
+            
+            {showDatePicker && (
+              <DateTimePicker
+                value={selectedDate}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={handleDateChange}
+                maximumDate={new Date()}
+                minimumDate={new Date(1940, 0, 1)}
+              />
+            )}
           </View>
         </View>
       </ScrollView>
@@ -466,57 +344,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
-  dateContainer: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  dateDropdown: {
-    flex: 1,
-    position: 'relative',
-  },
-  dropdownLabel: {
-    fontSize: 12,
-    marginBottom: 4,
-  },
-  dropdown: {
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  dropdownButton: {
+  datePickerButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 12,
-  },
-  dropdownText: {
-    fontSize: 14,
-  },
-  dropdownList: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    right: 0,
-    height: 150,
     borderRadius: 8,
     borderWidth: 1,
-    marginTop: 4,
-    zIndex: 9999,
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
   },
-  scrollableList: {
-    flex: 1,
-  },
-  dropdownItem: {
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderBottomWidth: 0.5,
-  },
-  dropdownItemText: {
-    fontSize: 14,
-    textAlign: 'center',
+  datePickerText: {
+    fontSize: 16,
   },
 });

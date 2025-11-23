@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-// import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
 import { BannerCarousel } from '../components/BannerCarousel';
@@ -48,12 +48,40 @@ export default function HomeScreen() {
   const [deliveryMessage, setDeliveryMessage] = useState('');
   const [deliveryStatus, setDeliveryStatus] = useState<'success' | 'error' | null>(null);
   const [currentLocationName, setCurrentLocationName] = useState('Current Location');
+  const [defaultAddress, setDefaultAddress] = useState<any>(null);
 
   // Check delivery service when component mounts or address changes
   useEffect(() => {
     console.log('🏠 Address changed, checking delivery service:', selectedAddress?.fullAddress);
     checkDeliveryService();
   }, [selectedAddress]);
+
+  // Fetch default address when user is logged in
+  useEffect(() => {
+    if (isLoggedIn) {
+      fetchDefaultAddress();
+    }
+  }, [isLoggedIn]);
+
+  const fetchDefaultAddress = async () => {
+    try {
+      const response = await fetch('https://api.jholabazar.com/api/v1/service-area/addresses', {
+        headers: {
+          'Authorization': `Bearer ${await AsyncStorage.getItem('authToken')}`,
+        },
+      });
+      const data = await response.json();
+      
+      if (data.success && data.data) {
+        const defaultAddr = data.data.find((addr: any) => addr.isDefault);
+        if (defaultAddr) {
+          setDefaultAddress(defaultAddr);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching default address:', error);
+    }
+  };
 
   const checkDeliveryService = async () => {
     console.log('🔍 Starting delivery service check...');
@@ -268,9 +296,12 @@ export default function HomeScreen() {
               style={styles.addressButton}
             >
               <Text style={[styles.addressText, { color: colors.text }]} numberOfLines={1}>
-                {(selectedAddress?.fullAddress || currentLocationName).length > 30 
-                  ? `${(selectedAddress?.fullAddress || currentLocationName).substring(0, 30)}...` 
-                  : (selectedAddress?.fullAddress || currentLocationName)}
+                {(() => {
+                  const addressToShow = selectedAddress?.fullAddress || defaultAddress?.fullAddress || currentLocationName;
+                  return addressToShow.length > 30 
+                    ? `${addressToShow.substring(0, 30)}...` 
+                    : addressToShow;
+                })()}
               </Text>
             </TouchableOpacity>
           </View>
@@ -569,5 +600,9 @@ const styles = StyleSheet.create({
   loginPromptText: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  defaultLabel: {
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

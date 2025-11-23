@@ -15,6 +15,7 @@ import { useTheme } from '../hooks/useTheme';
 import { RootState } from '../store/store';
 import { tokenManager } from '../utils/tokenManager';
 import { setSelectedAddress } from '../store/slices/addressSlice';
+import { Toast } from '../components/Toast';
 
 export default function AddressesScreen() {
   const navigation = useNavigation<any>();
@@ -25,6 +26,7 @@ export default function AddressesScreen() {
 
   const [addresses, setAddresses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' as 'success' | 'error' });
 
   useEffect(() => {
     fetchAddresses();
@@ -66,10 +68,19 @@ export default function AddressesScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await addressAPI.deleteAddress(addressId);
-              fetchAddresses(); // Refresh list
-            } catch {
-              Alert.alert('Error', 'Failed to delete address');
+              const response = await tokenManager.makeAuthenticatedRequest(`https://api.jholabazar.com/api/v1/service-area/addresses/${addressId}`, {
+                method: 'DELETE'
+              });
+              
+              if (response.ok) {
+                fetchAddresses(); // Refresh list
+                setToast({ visible: true, message: 'Address deleted successfully', type: 'success' });
+              } else {
+                setToast({ visible: true, message: 'Failed to delete address', type: 'error' });
+              }
+            } catch (error) {
+              console.error('Error deleting address:', error);
+              setToast({ visible: true, message: 'Failed to delete address', type: 'error' });
             }
           },
         },
@@ -80,6 +91,30 @@ export default function AddressesScreen() {
   const handleSelectAddress = (address: any) => {
     dispatch(setSelectedAddress(address));
     navigation.navigate('Home');
+  };
+
+  const handleMarkAsDefault = async (addressId: string) => {
+    try {
+      const response = await tokenManager.makeAuthenticatedRequest(`https://api.jholabazar.com/api/v1/service-area/addresses/${addressId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          isDefault: true
+        })
+      });
+      
+      if (response.ok) {
+        fetchAddresses(); // Refresh the list
+        setToast({ visible: true, message: 'Address marked as default', type: 'success' });
+      } else {
+        setToast({ visible: true, message: 'Failed to mark address as default', type: 'error' });
+      }
+    } catch (error) {
+      console.error('Error marking address as default:', error);
+      setToast({ visible: true, message: 'Failed to mark address as default', type: 'error' });
+    }
   };
 
   const renderAddress = ({ item }: { item: any }) => {
@@ -108,11 +143,7 @@ export default function AddressesScreen() {
             <Text style={[styles.addressType, { color: colors.primary }]}>
               {item.type?.toUpperCase() || 'OTHER'}
             </Text>
-            {isSelected && (
-              <View style={[styles.selectedBadge, { backgroundColor: colors.primary }]}>
-                <Icon name="check" size={12} color="#fff" />
-              </View>
-            )}
+
           </View>
           <View style={styles.addressActions}>
             <TouchableOpacity
@@ -140,16 +171,30 @@ export default function AddressesScreen() {
             {item.pincode.city}, {item.pincode.state} - {item.pincode.code}
           </Text>
         )}
-        {item.isDefault && (
-          <View style={[styles.defaultBadge, { backgroundColor: colors.primary }]}>
-            <Text style={styles.defaultText}>Default Address</Text>
-          </View>
-        )}
-        {isSelected && (
-          <Text style={[styles.selectedText, { color: colors.primary }]}>
-            Currently Selected
-          </Text>
-        )}
+        
+        <View style={styles.bottomActions}>
+          {item.isDefault ? (
+            <View style={[styles.defaultBadge, { backgroundColor: colors.primary }]}>
+              <Text style={styles.defaultText}>Default Address</Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={[styles.setDefaultButton, { borderColor: colors.primary }]}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleMarkAsDefault(item.id);
+              }}
+            >
+              <Text style={[styles.setDefaultText, { color: colors.primary }]}>Set as Default</Text>
+            </TouchableOpacity>
+          )}
+          
+          {isSelected && (
+            <Text style={[styles.selectedText, { color: colors.primary }]}>
+              Currently Selected
+            </Text>
+          )}
+        </View>
       </TouchableOpacity>
     );
   };
@@ -212,7 +257,12 @@ export default function AddressesScreen() {
         />
       )}
 
-
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onHide={() => setToast({ ...toast, visible: false })}
+      />
     </View>
   );
 }
@@ -374,18 +424,26 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '500',
   },
-  selectedBadge: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 8,
-  },
+
   selectedText: {
     fontSize: 12,
     fontWeight: '600',
-    marginTop: 8,
+  },
+  bottomActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
+  },
+  setDefaultButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  setDefaultText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   currentLocationContent: {
     flex: 1,
