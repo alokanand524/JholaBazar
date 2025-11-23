@@ -121,23 +121,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isServiceable
       return;
     }
     
-    // Allow add to cart without login for guest users
+    // Redirect to login if user is not logged in
     if (!isLoggedIn) {
-      console.log('Guest user adding to cart');
-      // Add to local cart only
-      const selectedVariant = product.variants?.find(v => v.id === variantId) || product.variants?.[0];
-      const cartData = {
-        id: product.id,
-        name: product.name,
-        price: product.price,
-        image: product.image,
-        category: product.category,
-        quantity: 1,
-        minOrderQty: selectedVariant?.minOrderQty,
-        maxOrderQty: selectedVariant?.maxOrderQty,
-        incrementQty: selectedVariant?.incrementQty,
-      };
-      dispatch(addToCart(cartData));
+      console.log('User not logged in, redirecting to login');
+      navigation.navigate('Login');
       return;
     }
     
